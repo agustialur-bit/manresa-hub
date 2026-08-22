@@ -310,6 +310,18 @@
     }
   }
 
+  function formatDisplayDate(str){
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      const [y,m,dd] = str.split('-');
+      return `${dd}/${m}/${y}`;
+    }
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+
   async function loadConsultar(){
     const list = document.getElementById('consultarList');
     list.innerHTML = '<div class="spinner">Carregant...</div>';
@@ -321,7 +333,7 @@
         if (!byDate[r.data]) byDate[r.data] = [];
         byDate[r.data].push(r);
       });
-      const dates = Object.keys(byDate).sort().reverse();
+      const dates = Object.keys(byDate).sort((a,b)=> new Date(b) - new Date(a));
       if (!dates.length){
         list.innerHTML = '<div class="empty">Encara no hi ha cap entrenament registrat.</div>';
         return;
@@ -332,8 +344,7 @@
         const total = items.reduce((s,i)=>s+Number(i.minuts||0),0);
         const card = document.createElement('div');
         card.className = 'day-card';
-        const [y,m,dd] = d.split('-');
-        card.innerHTML = `<div class="day-title">${dd}/${m}/${y}</div>` +
+        card.innerHTML = `<div class="day-title">${formatDisplayDate(d)}</div>` +
           items.map(i => `<div class="concept-line"><span class="cn">${i.concepte}</span><span class="mn">${i.minuts} min</span></div>`).join('') +
           `<div class="day-total">Total: ${total} min</div>`;
         list.appendChild(card);
