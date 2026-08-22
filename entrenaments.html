@@ -198,7 +198,7 @@
 
 <script>
   // ⚠️ Un cop desplegat l'Apps Script, enganxa aquí la URL acabada en /exec
-  const API_URL = "CONFIGURAR_URL_APPS_SCRIPT";
+  const API_URL = "https://script.google.com/macros/s/AKfycbxhyiqFm5fV2TWiSgBb-keqqes7jmYDqIr40mSWb8uxuHU-jN8MTH0t7XHeRVe-Yg/exec";
 
   let CONCEPTES = [];
   let sessionEntries = [];
@@ -294,15 +294,17 @@
     document.getElementById('saveBtn').disabled = true;
     document.getElementById('saveBtn').textContent = 'Desant...';
     try{
-      await fetch(API_URL, {
+      const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' }, // evita preflight CORS amb Apps Script
         body: JSON.stringify({ entries })
       });
+      const result = await res.json();
+      if (!result || !result.ok) throw new Error('resposta sense ok');
       toast('Entrenament desat ✓');
       setTimeout(()=>goTo('menu'), 800);
     } catch(err){
-      toast('Error en desar');
+      toast('Error en desar: revisa els noms de les pestanyes al Sheet');
       document.getElementById('saveBtn').disabled = false;
       document.getElementById('saveBtn').textContent = 'Desar entrenament';
     }
