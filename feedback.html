@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Feedback jugadores · Manresa</title>
+<meta name="theme-color" content="#11141a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#11141a; --bg-raised:#181c24; --line:#2a2f3a;
+    --pink:#ff2d78; --text:#f2f1ee; --text-dim:#8b93a3;
+    --c1:#34d399; --c2:#a3e635; --c3:#fbbf24; --c4:#fb923c; --c5:#f43f5e;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh; min-height:100dvh;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+  }
+  .wrap{width:100%; max-width:900px; margin:0 auto;}
+  .topbar{display:flex; align-items:center; gap:12px; margin-bottom:20px;}
+  .back-btn{
+    width:38px; height:38px; border-radius:10px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text); display:flex; align-items:center; justify-content:center;
+    text-decoration:none; flex:0 0 auto;
+  }
+  .topbar h1{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:20px;
+    text-transform:uppercase; letter-spacing:.01em; margin:0;
+  }
+
+  .legend{
+    display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px;
+    font-size:11.5px; color:var(--text-dim);
+  }
+  .legend .item{display:flex; align-items:center; gap:5px;}
+  .legend .sw{width:12px; height:12px; border-radius:3px; flex:0 0 auto;}
+
+  .scroll-area{overflow-x:auto; border-radius:14px; border:1px solid var(--line);}
+  table.heatmap{border-collapse:collapse; width:100%; font-size:12px;}
+  table.heatmap th, table.heatmap td{padding:0; text-align:center;}
+  table.heatmap thead th{
+    font-family:'Oswald',sans-serif; font-size:10.5px; color:var(--text-dim);
+    font-weight:500; padding:8px 4px; white-space:nowrap; background:var(--bg-raised);
+    position:sticky; top:0;
+  }
+  table.heatmap tbody th{
+    font-size:12.5px; text-align:left; padding:8px 10px; white-space:nowrap;
+    background:var(--bg-raised); position:sticky; left:0; font-weight:500;
+  }
+  table.heatmap td .cell{
+    width:34px; height:34px; margin:2px auto; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px;
+  }
+  table.heatmap td.empty .cell{background:transparent;}
+
+  .avg-row th{background:var(--bg-raised); position:sticky; left:0;}
+  .avg-row td .cell{border:1px solid var(--line);}
+
+  .empty-msg{text-align:center; color:var(--text-dim); font-size:14px; padding:60px 10px;}
+  .spinner{text-align:center; color:var(--text-dim); font-size:13px; padding:40px 10px;}
+
+  .stat-note{font-size:12px; color:var(--text-dim); margin-top:14px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a href="index.html" class="back-btn" aria-label="Enrere">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <h1>Feedback jugadores</h1>
+  </div>
+
+  <div class="legend">
+    <div class="item"><div class="sw" style="background:var(--c1);"></div>Molt bé</div>
+    <div class="item"><div class="sw" style="background:var(--c2);"></div>Bé</div>
+    <div class="item"><div class="sw" style="background:var(--c3);"></div>Normal</div>
+    <div class="item"><div class="sw" style="background:var(--c4);"></div>Cansada</div>
+    <div class="item"><div class="sw" style="background:var(--c5);"></div>Molt cansada</div>
+  </div>
+
+  <div id="content"><div class="spinner">Carregant...</div></div>
+</div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbxhyiqFm5fV2TWiSgBb-keqqes7jmYDqIr40mSWb8uxuHU-jN8MTH0t7XHeRVe-Yg/exec";
+
+  const SCALE = {
+    "Molt bé": { v: 1, color: "var(--c1)", emoji: "😃" },
+    "Bé": { v: 2, color: "var(--c2)", emoji: "🙂" },
+    "Normal": { v: 3, color: "var(--c3)", emoji: "😐" },
+    "Cansada": { v: 4, color: "var(--c4)", emoji: "😓" },
+    "Molt cansada": { v: 5, color: "var(--c5)", emoji: "🥵" }
+  };
+
+  function fmtDate(iso){
+    const [y,m,d] = iso.split('-');
+    return `${d}/${m}`;
+  }
+
+  async function load(){
+    const box = document.getElementById('content');
+    try{
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      const feedback = data.feedback || [];
+      if (!feedback.length){
+        box.innerHTML = '<div class="empty-msg">Encara no hi ha cap feedback registrat.</div>';
+        return;
+      }
+
+      const ROSTER = [
+        "0.Berta","5.Sira","8.Laia M","11.Laia V","12.Queralt","16.Jana S.",
+        "17.Júlia","18.Noa","19.Jana Ll","24.Núria","26.Mariona","48.Clàudia"
+      ];
+      const dates = [...new Set(feedback.map(f => f.data))].sort();
+      const dataPlayers = [...new Set(feedback.map(f => f.jugadora))];
+      const extra = dataPlayers.filter(p => !ROSTER.includes(p)).sort();
+      const players = [...ROSTER, ...extra];
+
+      // matriu jugadora -> data -> darrer valor (per si n'hi ha m\u00e9s d'un el mateix dia)
+      const grid = {};
+      feedback.forEach(f => {
+        if (!grid[f.jugadora]) grid[f.jugadora] = {};
+        grid[f.jugadora][f.data] = f;
+      });
+
+      let html = '<div class="scroll-area"><table class="heatmap"><thead><tr><th></th>';
+      dates.forEach(d => { html += `<th>${fmtDate(d)}</th>`; });
+      html += '</tr></thead><tbody>';
+
+      players.forEach(p => {
+        html += `<tr><th>${p}</th>`;
+        dates.forEach(d => {
+          const entry = grid[p] ? grid[p][d] : null;
+          if (entry && SCALE[entry.cansament]){
+            const s = SCALE[entry.cansament];
+            const title = entry.comentari ? ` title="${entry.comentari.replace(/"/g,'&quot;')}"` : '';
+            html += `<td><div class="cell" style="background:${s.color};"${title}>${s.emoji}</div></td>`;
+          } else {
+            html += '<td class="empty"><div class="cell"></div></td>';
+          }
+        });
+        html += '</tr>';
+      });
+
+      // fila de mitjana per dia
+      html += '<tr class="avg-row"><th>Mitjana</th>';
+      dates.forEach(d => {
+        const vals = players.map(p => grid[p] ? grid[p][d] : null).filter(Boolean).map(e => SCALE[e.cansament] ? SCALE[e.cansament].v : null).filter(v => v !== null);
+        if (vals.length){
+          const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
+          const rounded = Math.round(avg);
+          const closest = Object.values(SCALE).find(s => s.v === rounded) || SCALE["Normal"];
+          html += `<td><div class="cell" style="background:${closest.color}; font-size:11px; font-weight:600; color:#11141a;">${avg.toFixed(1)}</div></td>`;
+        } else {
+          html += '<td class="empty"><div class="cell"></div></td>';
+        }
+      });
+      html += '</tr>';
+
+      html += '</tbody></table></div>';
+      html += '<div class="stat-note">Toca una cel·la amb el dit una estona (o passa-hi el ratolí) per veure el comentari, si n\'hi ha. La fila "Mitjana" resumeix com va anar cada dia per a tot l\'equip.</div>';
+
+      box.innerHTML = html;
+    } catch(err){
+      box.innerHTML = '<div class="empty-msg">No s\'ha pogut connectar amb el registre.</div>';
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
