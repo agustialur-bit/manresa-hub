@@ -126,6 +126,30 @@
     font-size:12.5px; color:var(--text-dim); text-align:right;
   }
 
+  .heatmap-legend{
+    display:flex; align-items:center; gap:6px; margin-bottom:14px;
+    font-size:11.5px; color:var(--text-dim);
+  }
+  .heatmap-legend .sw{width:16px; height:12px; border-radius:3px; display:inline-block;}
+  .scroll-area{overflow-x:auto; border-radius:14px; border:1px solid var(--line);}
+  table.heatmap{border-collapse:collapse; width:100%; font-size:12px;}
+  table.heatmap th, table.heatmap td{padding:0; text-align:center;}
+  table.heatmap thead th{
+    font-family:'Oswald',sans-serif; font-size:10.5px; color:var(--text-dim);
+    font-weight:500; padding:8px 4px; white-space:nowrap; background:var(--bg-raised);
+    position:sticky; top:0;
+  }
+  table.heatmap tbody th{
+    font-size:12px; text-align:left; padding:8px 10px; white-space:nowrap;
+    background:var(--bg-raised); position:sticky; left:0; font-weight:500;
+  }
+  table.heatmap td .cell{
+    width:36px; height:32px; margin:2px auto; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11.5px; font-weight:600;
+  }
+  table.heatmap td.empty .cell{background:transparent;}
+
   .toast{
     position:fixed; left:20px; right:20px; bottom:28px;
     max-width:420px; margin:0 auto;
@@ -165,6 +189,14 @@
       </div>
       <div class="arrow">›</div>
     </div>
+    <div class="menu-tile" onclick="goTo('grafic')">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="4" height="10"/><rect x="10" y="5" width="4" height="15"/><rect x="17" y="13" width="4" height="7"/></svg></div>
+      <div>
+        <div class="tt">Resum gràfic</div>
+        <div class="ts">Mapa de calor per concepte i dia</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
     <a class="menu-tile" href="https://drive.google.com/drive/folders/1U-CXjkFQ6o0kSohcI00sfGRm8xG8BZc-?usp=drive_link" target="_blank" rel="noopener" style="text-decoration:none; color:inherit;">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M6 3h8l5 5v13H6z"/><path d="M9 13h6"/><path d="M9 17h6"/></svg></div>
       <div>
@@ -200,6 +232,11 @@
     <div id="consultarList"></div>
   </div>
 
+  <!-- GRÀFIC -->
+  <div class="view" id="view-grafic">
+    <div id="graficBox"></div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -224,12 +261,14 @@
     document.getElementById('view-'+view).classList.add('active');
     document.getElementById('pageTitle').textContent =
       view === 'menu' ? 'Entrenaments' :
-      view === 'registrar' ? 'Registrar' : 'Resum';
+      view === 'registrar' ? 'Registrar' :
+      view === 'grafic' ? 'Resum gràfic' : 'Resum';
     document.getElementById('backBtn').onclick = (e) => {
       if (view !== 'menu') { e.preventDefault(); goTo('menu'); }
     };
     if (view === 'registrar') resetRegistrar();
     if (view === 'consultar') loadConsultar();
+    if (view === 'grafic') loadGrafic();
   }
 
   function resetRegistrar(){
@@ -359,6 +398,72 @@
       });
     } catch(err){
       list.innerHTML = '<div class="empty">No s\'ha pogut connectar amb el registre.</div>';
+    }
+  }
+
+  async function loadGrafic(){
+    const box = document.getElementById('graficBox');
+    box.innerHTML = '<div class="spinner">Carregant...</div>';
+    try{
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      const registres = data.registres || [];
+      if (!registres.length){
+        box.innerHTML = '<div class="empty">Encara no hi ha cap entrenament registrat.</div>';
+        return;
+      }
+
+      const dates = [...new Set(registres.map(r => r.data))].sort();
+      const dataConceptes = [...new Set(registres.map(r => r.concepte))];
+      const orderedConceptes = CONCEPTES.length ? CONCEPTES : dataConceptes;
+      const extra = dataConceptes.filter(c => !orderedConceptes.includes(c));
+      const conceptes = [...orderedConceptes, ...extra];
+
+      const grid = {};
+      registres.forEach(r => {
+        if (!grid[r.concepte]) grid[r.concepte] = {};
+        grid[r.concepte][r.data] = (grid[r.concepte][r.data] || 0) + Number(r.minuts || 0);
+      });
+
+      const bucket = (m) => {
+        if (m === null || m === undefined) return null;
+        if (m <= 10) return '#E1F5EE';
+        if (m <= 20) return '#9FE1CB';
+        if (m <= 30) return '#5DCAA5';
+        return '#0F6E56';
+      };
+      const textColor = (m) => (m !== null && m > 30) ? '#EAFBF5' : '#04342C';
+
+      let html = '<div class="heatmap-legend">' +
+        '<span>Menys minuts</span>' +
+        '<span class="sw" style="background:#E1F5EE;"></span>' +
+        '<span class="sw" style="background:#9FE1CB;"></span>' +
+        '<span class="sw" style="background:#5DCAA5;"></span>' +
+        '<span class="sw" style="background:#0F6E56;"></span>' +
+        '<span>Més minuts</span></div>';
+
+      html += '<div class="scroll-area"><table class="heatmap"><thead><tr><th></th>';
+      dates.forEach(d => { html += `<th>${formatDisplayDate(d).slice(0,5)}</th>`; });
+      html += '</tr></thead><tbody>';
+
+      conceptes.forEach(c => {
+        if (!grid[c]) return; // no amaguem conceptes sense dades, però evitem files totalment buides
+        html += `<tr><th>${c}</th>`;
+        dates.forEach(d => {
+          const m = grid[c][d];
+          if (m !== undefined){
+            html += `<td><div class="cell" style="background:${bucket(m)}; color:${textColor(m)};">${m}</div></td>`;
+          } else {
+            html += '<td class="empty"><div class="cell"></div></td>';
+          }
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+
+      box.innerHTML = html;
+    } catch(err){
+      box.innerHTML = '<div class="empty">No s\'ha pogut connectar amb el registre.</div>';
     }
   }
 
