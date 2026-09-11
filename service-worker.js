@@ -1,30 +1,52 @@
-const CACHE = 'manresa-hub-v1';
-const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+/* Puja el número de VERSIO cada cop que publiquis canvis: això fa que els
+   mòbils esborrin la còpia antiga i es quedin només amb la nova. */
+const VERSIO = 'v2';
+const CACHE = 'manresa-hub-' + VERSIO;
+
+// Fitxers que gairebé no canvien: es serveixen de la còpia local.
+const ESTATICS = ['./manifest.json', './icon-192.png', './icon-512.png'];
+// Pàgines: es precarreguen per poder obrir l'app sense cobertura, però es
+// demanen sempre a la xarxa primer (mira el 'fetch' de més avall).
+const PAGINES = ['./', './index.html', './entrenaments.html', './feedback.html'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL))
-  );
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ESTATICS.concat(PAGINES))));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
-// App shell only — every tile link goes to a live external site (Streamlit,
-// GitHub Pages, Drive), so we never intercept those; only cache-first for the
-// shell files themselves, falling back to network for everything else.
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return; // let Drive/Streamlit/etc. load normally
+  const req = event.request;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return; // Drive i l'API van sempre a la xarxa
+  if (req.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+  const esPagina = req.mode === 'navigate' || req.destination === 'document' ||
+                   url.pathname.endsWith('.html') || url.pathname.endsWith('/');
+
+  if (esPagina) {
+    // Xarxa primer: així qualsevol canvi que es publiqui arriba sol al mòbil.
+    // Si no hi ha cobertura, servim l'última còpia bona desada.
+    event.respondWith(
+      // 'no-store' salta la copia HTTP del propi navegador: sense aixo, un
+      // canvi acabat de publicar pot trigar minuts a arribar al mobil.
+      fetch(req.url, { cache: 'no-store', credentials: 'same-origin' })
+        .then((res) => {
+          const copia = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copia));
+          return res;
+        })
+        .catch(() => caches.match(req).then((c) => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Icones i manifest: còpia primer, que no canvien i així l'app obre ràpid.
+  event.respondWith(caches.match(req).then((cached) => cached || fetch(req)));
 });

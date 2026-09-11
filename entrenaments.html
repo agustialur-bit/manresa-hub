@@ -245,6 +245,75 @@
   // ⚠️ Un cop desplegat l'Apps Script, enganxa aquí la URL acabada en /exec
   const API_URL = "https://script.google.com/macros/s/AKfycbxhyiqFm5fV2TWiSgBb-keqqes7jmYDqIr40mSWb8uxuHU-jN8MTH0t7XHeRVe-Yg/exec";
 
+  /* --- Connexio amb el Sheet -----------------------------------------------
+     El web app d'Apps Script respon 404 de manera intermitent quan rep
+     peticions seguides (per exemple tot l'equip enviant alhora en acabar
+     l'entrenament). Per aixo cada crida es reintenta amb una espera creixent.
+
+     IMPORTANT: quan un POST falla, Apps Script sovint JA ha escrit la fila
+     abans de retornar l'error. Per aixo no reintentem mai a cegues: entre
+     intent i intent rellegim el Sheet i comprovem si les dades ja hi son.
+     I ho comprovem tambe just abans de rendir-nos, perque si no l'usuari
+     tornaria a enviar-ho a ma i duplicaria la fila.
+     --------------------------------------------------------------------- */
+  const ESPERES = [1200, 3000];   // espera creixent entre intents
+  const TEMPS_MAX = 9000;         // cap crida es pot penjar mes d'aixo
+  const LIMIT_TOTAL = 20000;      // sostre: ningu s'espera mirant la pantalla
+  const dorm = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function fetchLimitat(opcions){
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), TEMPS_MAX);
+    try{
+      return await fetch(API_URL, Object.assign({ signal: ctrl.signal }, opcions));
+    } finally {
+      clearTimeout(id);
+    }
+  }
+
+  async function apiLlegeix(intents = 3){
+    let ultimError;
+    for (let i = 0; i < intents; i++){
+      try{
+        const res = await fetchLimitat({ cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      } catch(err){
+        ultimError = err;
+        if (i < intents - 1) await dorm(ESPERES[Math.min(i, ESPERES.length - 1)]);
+      }
+    }
+    throw ultimError;
+  }
+
+  // jaHiEs(dades) ha de dir si allo que voliem desar ja consta al Sheet.
+  // onReintent() serveix per avisar que encara hi estem treballant.
+  async function apiDesa(payload, jaHiEs, onReintent){
+    const INICI = Date.now();
+    for (let i = 0; ; i++){
+      try{
+        const res = await fetchLimitat({
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' }, // evita el preflight CORS
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const r = await res.json();
+        if (r && r.ok) return true;
+        throw new Error('resposta sense ok');
+      } catch(err){
+        // Pot haver-se desat igualment: ho mirem sempre, tambe abans de
+        // rendir-nos, per no acabar duplicant la fila.
+        try{
+          if (jaHiEs(await apiLlegeix(1))) return true;
+        } catch(e){ /* si la lectura tambe falla, seguim */ }
+        if (i >= 2 || Date.now() - INICI > LIMIT_TOTAL) return false;
+        if (onReintent) onReintent();
+        await dorm(ESPERES[Math.min(i, ESPERES.length - 1)]);
+      }
+    }
+  }
+
   let CONCEPTES = [];
   let sessionEntries = [];
   let pendingConcept = null;
@@ -338,22 +407,37 @@
     const date = document.getElementById('dateInput').value;
     if (!date || sessionEntries.length === 0) return;
     const entries = sessionEntries.map(e => ({ data: date, concepte: e.concepte, minuts: e.minuts }));
-    document.getElementById('saveBtn').disabled = true;
-    document.getElementById('saveBtn').textContent = 'Desant...';
-    try{
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' }, // evita preflight CORS amb Apps Script
-        body: JSON.stringify({ entries })
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Desant...';
+
+    // Comprovem que hi siguin totes les linies, comptant repeticions: dins
+    // d'un mateix entrenament es pot repetir concepte i minuts.
+    const clau = (r) => r.concepte + '|' + Number(r.minuts);
+    const jaHiEs = (d) => {
+      const compte = {};
+      (d.registres || []).filter(r => r.data === date).forEach(r => {
+        compte[clau(r)] = (compte[clau(r)] || 0) + 1;
       });
-      const result = await res.json();
-      if (!result || !result.ok) throw new Error('resposta sense ok');
+      return entries.every(e => {
+        const k = clau(e);
+        if (!compte[k]) return false;
+        compte[k]--;
+        return true;
+      });
+    };
+
+    const desat = await apiDesa({ entries }, jaHiEs, () => {
+      btn.textContent = 'Reintentant...';
+    });
+
+    if (desat){
       toast('Entrenament desat ✓');
       setTimeout(()=>goTo('menu'), 800);
-    } catch(err){
-      toast('Error en desar: revisa els noms de les pestanyes al Sheet');
-      document.getElementById('saveBtn').disabled = false;
-      document.getElementById('saveBtn').textContent = 'Desar entrenament';
+    } else {
+      toast('No s\'ha pogut desar. Torna-ho a provar d\'aquí un moment.');
+      btn.disabled = false;
+      btn.textContent = 'Desar entrenament';
     }
   }
 
@@ -373,8 +457,7 @@
     const list = document.getElementById('consultarList');
     list.innerHTML = '<div class="spinner">Carregant...</div>';
     try{
-      const res = await fetch(API_URL);
-      const data = await res.json();
+      const data = await apiLlegeix();
       const byDate = {};
       (data.registres || []).forEach(r => {
         if (!byDate[r.data]) byDate[r.data] = [];
@@ -405,8 +488,7 @@
     const box = document.getElementById('graficBox');
     box.innerHTML = '<div class="spinner">Carregant...</div>';
     try{
-      const res = await fetch(API_URL);
-      const data = await res.json();
+      const data = await apiLlegeix();
       const registres = data.registres || [];
       if (!registres.length){
         box.innerHTML = '<div class="empty">Encara no hi ha cap entrenament registrat.</div>';
@@ -469,8 +551,7 @@
 
   async function loadConceptes(){
     try{
-      const res = await fetch(API_URL);
-      const data = await res.json();
+      const data = await apiLlegeix(2); // te llista de reserva: no cal insistir
       CONCEPTES = data.conceptes && data.conceptes.length ? data.conceptes : CONCEPTES;
     } catch(err){ /* es fa servir la llista de reserva */ }
   }
