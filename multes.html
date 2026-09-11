@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Les multes · Manresa</title>
+<meta name="theme-color" content="#11141a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#11141a; --bg-raised:#181c24; --bg-raised-2:#1e2330;
+    --line:#2a2f3a; --pink:#ff2d78; --pink-dim:#c21f5c;
+    --text:#f2f1ee; --text-dim:#8b93a3;
+    --or:#ffc93c; --deute:#ff5a4e; --ok:#3ddc97;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh; min-height:100dvh;
+    padding: max(20px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+  }
+  .wrap{width:100%; max-width:520px; margin:0 auto;}
+
+  .topbar{display:flex; align-items:center; gap:12px; margin-bottom:22px;}
+  .back-btn{
+    width:38px; height:38px; border-radius:10px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text); display:flex; align-items:center; justify-content:center;
+    text-decoration:none; flex:0 0 auto;
+  }
+  .topbar h1{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:22px;
+    text-transform:uppercase; letter-spacing:.01em; margin:0;
+  }
+
+  /* ---- el pot ---- */
+  .pot{
+    background:linear-gradient(160deg, var(--bg-raised-2), var(--bg-raised));
+    border:1px solid var(--line); border-radius:18px;
+    padding:22px 20px; text-align:center; margin-bottom:8px; position:relative; overflow:hidden;
+  }
+  .pot::before{
+    content:""; position:absolute; inset:0 0 auto 0; height:3px; background:var(--pink);
+  }
+  .pot-label{
+    font-family:'Oswald',sans-serif; font-size:11.5px; letter-spacing:.2em;
+    text-transform:uppercase; color:var(--pink); margin-bottom:6px;
+  }
+  .pot-xifra{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:46px; line-height:1;
+    letter-spacing:.01em;
+  }
+  .pot-sub{font-size:12.5px; color:var(--text-dim); margin-top:8px;}
+  .pot-sub .ok{color:var(--ok); font-weight:600;}
+  .pot-sub .mal{color:var(--deute); font-weight:600;}
+
+  /* ---- capcalera de la cursa ---- */
+  .cursa-cap{
+    display:flex; align-items:center; justify-content:space-between;
+    margin:26px 2px 2px;
+  }
+  .cursa-titol{
+    font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--pink);
+  }
+  .cursa-ajuda{font-size:11px; color:var(--text-dim);}
+  .linia-meta{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:15px; padding:0 2px 6px; opacity:.85;
+  }
+
+  /* ---- carrils ---- */
+  .carril{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:14px; padding:10px 14px 16px; margin-bottom:9px;
+  }
+  .carril.lider{border-color:var(--or);}
+  .carril-cap{display:flex; align-items:baseline; gap:8px; margin-bottom:4px;}
+  .pos{
+    font-family:'Oswald',sans-serif; font-size:12px; color:var(--text-dim);
+    width:20px; flex:0 0 auto;
+  }
+  .carril.lider .pos{color:var(--or);}
+  .carril-nom{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:14.5px;
+    text-transform:uppercase; letter-spacing:.02em; flex:1; min-width:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .carril-nom .staff{
+    font-family:'Inter',sans-serif; font-size:9.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim);
+    border:1px solid var(--line); border-radius:4px; padding:1px 4px; margin-left:6px;
+    vertical-align:middle;
+  }
+  .carril-eur{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:16px; flex:0 0 auto;
+  }
+  .carril-detall{
+    font-size:11px; color:var(--text-dim); margin:0 0 10px 28px;
+  }
+  .carril-detall .deu{color:var(--deute); font-weight:600;}
+  .carril-detall .aldia{color:var(--ok); font-weight:600;}
+
+  .pista{position:relative; height:44px; margin-left:28px;}
+  .pista-linia{
+    position:absolute; left:20px; right:20px; top:50%; height:2px;
+    background:repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 12px);
+    transform:translateY(-50%);
+  }
+  /* L'embolcall es el que es mou; la fitxa nomes es el cercle de dins.
+     Separats perque el dorsal pugui sobresortir sense que el retalli
+     l'overflow:hidden que arrodoneix la foto. */
+  .fitxa-embolcall{
+    position:absolute; top:50%; width:40px; height:40px;
+    left:calc(20px + (100% - 40px) * var(--p, 0));
+    transform:translate(-50%, -50%);
+    transition:left 1.1s cubic-bezier(.22,.9,.3,1);
+  }
+  .fitxa{
+    position:relative; width:100%; height:100%;
+    border-radius:50%;
+    border:2px solid var(--line); background:var(--bg-raised-2);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .fitxa img{width:100%; height:100%; object-fit:cover; display:block; border-radius:50%;}
+  .fitxa .inicials{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; color:var(--text-dim);
+  }
+  .carril.lider .fitxa{border-color:var(--or);}
+  .carril.te-deute .fitxa{border-color:var(--deute);}
+  .dorsal{
+    position:absolute; bottom:-2px; right:-2px;
+    background:var(--pink); color:#11141a;
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:9.5px;
+    min-width:16px; height:16px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 3px; border:2px solid var(--bg-raised);
+  }
+  /* ---- la tira de qui encara no te cap multa ---- */
+  .sortida{
+    display:flex; flex-wrap:wrap; gap:14px 10px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:14px; padding:16px 14px; margin-top:8px;
+  }
+  .sortida-un{width:56px; text-align:center;}
+  .sortida-un .fitxa{width:44px; height:44px; margin:0 auto;}
+  .sortida-nom{
+    font-size:10px; color:var(--text-dim); margin-top:5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .estat{
+    text-align:center; color:var(--text-dim); font-size:13px;
+    padding:30px 10px; line-height:1.5;
+  }
+  .refresca{
+    display:block; margin:26px auto 0; background:var(--bg-raised);
+    border:1px solid var(--line); color:var(--text-dim);
+    font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:.1em;
+    text-transform:uppercase; padding:9px 16px; border-radius:9px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a href="index.html" class="back-btn" aria-label="Enrere">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <h1>Les multes</h1>
+  </div>
+
+  <div id="contingut">
+    <div class="estat">Carregant la cursa...</div>
+  </div>
+</div>
+
+<script>
+  /* URL del full de multes publicat al web en format CSV.
+     Full → Fitxer → Compartir → Publica al web → full "Multes", format CSV. */
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROdWWF1v3PwOu3dxkJjg1sYVVZykTIKvdEDhdbOgwk6j1HbYTM4rsOdWw2pKZ7Dd7p4yTp0FkzDuMO/pub?gid=0&single=true&output=csv";
+
+  /* --- Connexio amb el full ------------------------------------------------
+     El CSV publicat el serveix el CDN de Google, molt mes fiable que un web
+     app d'Apps Script, pero igualment reintentem un parell de cops per si de
+     cas (cobertura dolenta al pavello, per exemple). ---------------------- */
+  const ESPERES = [1000, 3000];
+  const TEMPS_MAX = 9000;
+  const dorm = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function llegeixCSV(intents = 3){
+    let ultimError;
+    for (let i = 0; i < intents; i++){
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), TEMPS_MAX);
+      try{
+        const res = await fetch(CSV_URL, { cache: 'no-store', signal: ctrl.signal });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.text();
+      } catch(err){
+        ultimError = err;
+        if (i < intents - 1) await dorm(ESPERES[Math.min(i, ESPERES.length - 1)]);
+      } finally {
+        clearTimeout(id);
+      }
+    }
+    throw ultimError;
+  }
+
+  // Parser de CSV que respecta les cometes i els salts de linia de dins.
+  function parseCSV(text){
+    const files = [];
+    let fila = [], camp = '', dinsCometes = false;
+    for (let i = 0; i < text.length; i++){
+      const c = text[i];
+      if (dinsCometes){
+        if (c === '"'){
+          if (text[i+1] === '"'){ camp += '"'; i++; }
+          else dinsCometes = false;
+        } else camp += c;
+      } else if (c === '"'){
+        dinsCometes = true;
+      } else if (c === ','){
+        fila.push(camp); camp = '';
+      } else if (c === '\n'){
+        fila.push(camp); files.push(fila); fila = []; camp = '';
+      } else if (c !== '\r'){
+        camp += c;
+      }
+    }
+    if (camp !== '' || fila.length) { fila.push(camp); files.push(fila); }
+    return files;
+  }
+
+  const aNumero = (v) => {
+    const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9,.-]/g, '').replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  };
+
+  /* Noms tal com volem que surtin a la cursa, quan el del full es massa
+     llarg. La clau ha de ser exactament el nom de la columna Nom. */
+  const NOMS_CURTS = {
+    'Agustí Alur': 'Agustí'
+  };
+  const nomCurt = (nom) => NOMS_CURTS[nom] || nom;
+
+  function inicials(nom){
+    return nom.trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase();
+  }
+
+  const euros = (n) => (Math.round(n * 100) / 100).toLocaleString('ca-ES') + ' €';
+  const escapa = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function llegeixFiles(text){
+    const files = parseCSV(text);
+    if (!files.length) return [];
+    const cap = files[0].map(h => h.trim().toLowerCase());
+    const col = (nom) => cap.indexOf(nom);
+    const iDorsal = col('dorsal'), iNom = col('nom'), iRol = col('rol');
+    const iMultes = col('multes'), iAcumulat = col('acumulat');
+    const iPagat = col('pagat'), iPendent = col('pendent');
+    if (iNom < 0) throw new Error('no trobo la columna Nom');
+
+    return files.slice(1).map(f => ({
+      dorsal: (f[iDorsal] || '').trim(),
+      nom: (f[iNom] || '').trim(),
+      rol: (f[iRol] || '').trim(),
+      multes: aNumero(f[iMultes]),
+      acumulat: aNumero(f[iAcumulat]),
+      pagat: aNumero(f[iPagat]),
+      pendent: aNumero(f[iPendent])
+    })).filter(p => p.nom);
+  }
+
+  function pinta(gent){
+    const box = document.getElementById('contingut');
+    if (!gent.length){
+      box.innerHTML = '<div class="estat">El full de multes és buit.</div>';
+      return;
+    }
+
+    const totalPagat = gent.reduce((s, p) => s + p.pagat, 0);
+    const totalAcumulat = gent.reduce((s, p) => s + p.acumulat, 0);
+    const deutors = gent.filter(p => p.pendent > 0).sort((a, b) => b.pendent - a.pendent);
+    const totalDeute = deutors.reduce((s, p) => s + p.pendent, 0);
+    const maxAcumulat = Math.max.apply(null, gent.map(p => p.acumulat));
+
+    // ordre: qui mes ha acumulat, al davant. A igualtat, per dorsal.
+    const ordenats = gent.slice().sort((a, b) => {
+      if (b.acumulat !== a.acumulat) return b.acumulat - a.acumulat;
+      const da = a.dorsal === '' ? 999 : Number(a.dorsal);
+      const db = b.dorsal === '' ? 999 : Number(b.dorsal);
+      return da - db;
+    });
+
+    let html = '';
+
+    html += '<div class="pot">' +
+      '<div class="pot-label">El pot de l\'equip</div>' +
+      '<div class="pot-xifra">' + escapa(euros(totalPagat)) + '</div>' +
+      '<div class="pot-sub">' +
+        (totalAcumulat > 0 ? 'de ' + escapa(euros(totalAcumulat)) + ' en multes · ' : '') +
+        (totalDeute > 0
+          ? '<span class="mal">' + deutors.length + (deutors.length === 1 ? ' persona deu ' : ' persones deuen ') + escapa(euros(totalDeute)) + '</span>'
+          : '<span class="ok">tothom al dia ✓</span>') +
+      '</div></div>';
+
+    html += '<div class="cursa-cap"><div class="cursa-titol">La cursa</div></div>';
+    html += '<div class="linia-meta"><span>🏁</span><span>🏀</span></div>';
+
+    // A la cursa nomes hi corre qui te alguna multa: si no, serien quinze
+    // carrils identics a zero i no es veuria res. La resta van a la linia
+    // de sortida, en una tira compacta.
+    const corren = ordenats.filter(p => p.acumulat > 0);
+    const asortida = ordenats.filter(p => p.acumulat === 0);
+
+    if (!corren.length){
+      html += '<div class="estat" style="padding:10px 10px 4px;">Tothom a la línia de sortida.<br>La temporada acaba de començar 🎉</div>';
+    }
+
+    corren.forEach((p, i) => {
+      const lider = maxAcumulat > 0 && p.acumulat === maxAcumulat;
+      const pct = maxAcumulat > 0 ? p.acumulat / maxAcumulat : 0;
+      const foto = p.dorsal !== '' ? 'fotos/' + encodeURIComponent(p.dorsal) + '.jpg' : '';
+      const classes = ['carril'];
+      if (lider) classes.push('lider');
+      if (p.pendent > 0) classes.push('te-deute');
+
+      const detall = p.acumulat === 0
+        ? 'cap multa'
+        : p.multes + (p.multes === 1 ? ' multa' : ' multes') + ' · ' +
+          (p.pendent > 0
+            ? '<span class="deu">deu ' + escapa(euros(p.pendent)) + '</span>'
+            : '<span class="aldia">pagat ✓</span>');
+
+      html += '<div class="' + classes.join(' ') + '">' +
+        '<div class="carril-cap">' +
+          '<span class="pos">' + (lider ? '👑' : i + 1) + '</span>' +
+          '<span class="carril-nom">' + escapa(nomCurt(p.nom)) +
+            (p.rol && p.rol.toLowerCase() !== 'jugadora' ? '<span class="staff">' + escapa(p.rol) + '</span>' : '') +
+          '</span>' +
+          '<span class="carril-eur">' + escapa(euros(p.acumulat)) + '</span>' +
+        '</div>' +
+        '<div class="carril-detall">' + detall + '</div>' +
+        '<div class="pista">' +
+          '<div class="pista-linia"></div>' +
+          '<div class="fitxa-embolcall" data-p="' + pct + '">' +
+            '<div class="fitxa">' +
+              (foto
+                ? '<img src="' + foto + '" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'inicials\',textContent:\'' + escapa(inicials(p.nom)) + '\'}))">'
+                : '<span class="inicials">' + escapa(inicials(p.nom)) + '</span>') +
+              (p.dorsal !== '' ? '<span class="dorsal">' + escapa(p.dorsal) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    });
+
+    if (asortida.length){
+      html += '<div class="cursa-cap" style="margin-top:22px;">' +
+        '<div class="cursa-titol">A la línia de sortida</div>' +
+        '<div class="cursa-ajuda">' + asortida.length + ' sense cap multa</div>' +
+        '</div>';
+      html += '<div class="sortida">' + asortida.map(p => {
+        const foto = p.dorsal !== '' ? 'fotos/' + encodeURIComponent(p.dorsal) + '.jpg' : '';
+        return '<div class="sortida-un" title="' + escapa(nomCurt(p.nom)) + '">' +
+          '<div class="fitxa">' +
+            (foto
+              ? '<img src="' + foto + '" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'inicials\',textContent:\'' + escapa(inicials(p.nom)) + '\'}))">'
+              : '<span class="inicials">' + escapa(inicials(p.nom)) + '</span>') +
+            (p.dorsal !== '' ? '<span class="dorsal">' + escapa(p.dorsal) + '</span>' : '') +
+          '</div>' +
+          '<div class="sortida-nom">' + escapa(nomCurt(p.nom).split(/\s+/)[0]) + '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    }
+
+    html += '<button class="refresca" id="refresca">Actualitzar</button>';
+
+    box.innerHTML = html;
+
+    // les fitxes surten de la linia de sortida i avancen fins a la seva posicio
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      box.querySelectorAll('.fitxa-embolcall').forEach(el => {
+        el.style.setProperty('--p', el.dataset.p);
+      });
+    }));
+
+    document.getElementById('refresca').addEventListener('click', carrega);
+  }
+
+  async function carrega(){
+    const box = document.getElementById('contingut');
+    box.innerHTML = '<div class="estat">Carregant la cursa...</div>';
+    if (CSV_URL.indexOf('__PENDENT') === 0){
+      box.innerHTML = '<div class="estat">Encara falta enganxar l\'enllaç del full publicat.</div>';
+      return;
+    }
+    try{
+      pinta(llegeixFiles(await llegeixCSV()));
+    } catch(err){
+      box.innerHTML = '<div class="estat">No s\'han pogut carregar les multes.<br>Torna-ho a provar d\'aquí un moment.' +
+        '<br><button class="refresca" onclick="carrega()">Tornar a provar</button></div>';
+    }
+  }
+
+  carrega();
+</script>
+</body>
+</html>
