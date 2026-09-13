@@ -1,13 +1,13 @@
 /* Puja el número de VERSIO cada cop que publiquis canvis: això fa que els
    mòbils esborrin la còpia antiga i es quedin només amb la nova. */
-const VERSIO = 'v3';
+const VERSIO = 'v4';
 const CACHE = 'manresa-hub-' + VERSIO;
 
 // Fitxers que gairebé no canvien: es serveixen de la còpia local.
 const ESTATICS = ['./manifest.json', './icon-192.png', './icon-512.png'];
 // Pàgines: es precarreguen per poder obrir l'app sense cobertura, però es
 // demanen sempre a la xarxa primer (mira el 'fetch' de més avall).
-const PAGINES = ['./', './index.html', './entrenaments.html', './feedback.html', './multes.html'];
+const PAGINES = ['./', './index.html', './entrenaments.html', './feedback.html', './multes.html', './videos.html'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ESTATICS.concat(PAGINES))));
