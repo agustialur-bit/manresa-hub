@@ -6,8 +6,10 @@
  * 2) Pestanya "Conceptes" — un concepte per fila a la columna A (sense capçalera)
  * 3) Pestanya "Feedback" — Fila 1 (capçalera): Data | Jugadora | Cansament | Comentari
  * 4) Pestanya "Videos" — Fila 1 (capçalera): Data | Títol | URL
- *    (un vídeo de YouTube per fila; per afegir-ne un de nou, només cal
- *    afegir-hi una fila més amb la data, un títol curt i l'enllaç)
+ *    (vídeos de YouTube dels NOSTRES partits; per afegir-ne un de nou,
+ *    només cal afegir-hi una fila més amb la data, un títol curt i l'enllaç)
+ * 5) Pestanya "VideosRivals" — mateixes columnes que "Videos", però amb
+ *    vídeos de YouTube d'equips CONTRARIS
  *
  * DESPLEGAMENT:
  * Desplegament -> Gestiona desplegaments -> llapis (editar) -> Nova versió -> Desplega
@@ -22,12 +24,25 @@ function formatData_(val) {
   return isNaN(asDate) ? String(val || '') : Utilities.formatDate(asDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
+function readVideos_(sheet) {
+  var videos = [];
+  if (!sheet) return videos;
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) { // salta capçalera
+    var row = data[i];
+    if (!row[2]) continue; // cal URL com a mínim
+    videos.push({ data: formatData_(row[0]), titol: String(row[1] || ''), url: String(row[2]) });
+  }
+  return videos;
+}
+
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var regSheet = ss.getSheetByName('Registres');
   var concSheet = ss.getSheetByName('Conceptes');
   var fbSheet = ss.getSheetByName('Feedback');
   var vidSheet = ss.getSheetByName('Videos');
+  var vidRivalsSheet = ss.getSheetByName('VideosRivals');
 
   var registres = [];
   if (regSheet) {
@@ -63,18 +78,14 @@ function doGet(e) {
     }
   }
 
-  var videos = [];
-  if (vidSheet) {
-    var vidData = vidSheet.getDataRange().getValues();
-    for (var k = 1; k < vidData.length; k++) { // salta capçalera
-      var vrow = vidData[k];
-      if (!vrow[2]) continue; // cal URL com a mínim
-      videos.push({ data: formatData_(vrow[0]), titol: String(vrow[1] || ''), url: String(vrow[2]) });
-    }
-  }
+  var videos = readVideos_(vidSheet);
+  var videosRivals = readVideos_(vidRivalsSheet);
 
   return ContentService
-    .createTextOutput(JSON.stringify({ registres: registres, conceptes: conceptes, feedback: feedback, videos: videos }))
+    .createTextOutput(JSON.stringify({
+      registres: registres, conceptes: conceptes, feedback: feedback,
+      videos: videos, videosRivals: videosRivals
+    }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
