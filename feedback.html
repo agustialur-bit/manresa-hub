@@ -242,6 +242,12 @@
       html += '<div class="stat-note">Toca una cel·la amb el dit una estona (o passa-hi el ratolí) per veure el comentari, si n\'hi ha. La fila "Mitjana" resumeix com va anar cada dia per a tot l\'equip.</div>';
 
       box.innerHTML = html;
+      // En obrir la pagina, ensenya els ultims dies, que es el que es
+      // vol mirar: abans sortia el primer dia registrat i calia
+      // arrossegar la taula fins al final cada vegada. La columna de
+      // noms es fixa, aixi que desplacant-la no es perd de vista qui es qui.
+      const area = box.querySelector('.scroll-area');
+      if (area) area.scrollLeft = area.scrollWidth;
     } catch(err){
       box.innerHTML = '<div class="empty-msg">No s\'ha pogut connectar amb el registre.</div>';
     }
