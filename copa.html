@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Estadístiques COPA · Manresa</title>
+<meta name="theme-color" content="#11141a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#11141a; --bg-raised:#181c24; --bg-raised-2:#1e2330;
+    --line:#2a2f3a; --pink:#ff2d78; --pink-dim:#c21f5c;
+    --text:#f2f1ee; --text-dim:#8b93a3;
+    --ok:#3ddc97; --mal:#ff5a4e;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh; min-height:100dvh;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+  }
+  .wrap{width:100%; max-width:1000px; margin:0 auto;}
+
+  .topbar{display:flex; align-items:center; gap:12px; margin-bottom:18px;}
+  .back-btn{
+    width:38px; height:38px; border-radius:10px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text); display:flex; align-items:center; justify-content:center;
+    text-decoration:none; flex:0 0 auto;
+  }
+  .topbar h1{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:21px;
+    text-transform:uppercase; letter-spacing:.01em; margin:0;
+  }
+
+  /* ---- pestanyes ---- */
+  .tabs{display:flex; gap:6px; margin-bottom:14px;}
+  .tab{
+    flex:1; padding:10px 8px; border-radius:10px; cursor:pointer;
+    background:var(--bg-raised); border:1px solid var(--line); color:var(--text-dim);
+    font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; text-align:center;
+  }
+  .tab.actiu{background:var(--pink); border-color:var(--pink); color:#11141a; font-weight:600;}
+
+  /* ---- filtres ---- */
+  .filtres{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .filtres select{flex:0 1 auto; max-width:48%;}
+  .filtres select, .filtres input{
+    background:var(--bg-raised); border:1px solid var(--line); color:var(--text);
+    border-radius:9px; padding:9px 10px; font-family:'Inter',sans-serif; font-size:12.5px;
+    min-width:0;
+  }
+  .filtres input[type="search"]{flex:1; min-width:130px;}
+  .filtres label{
+    display:flex; align-items:center; gap:6px; flex:0 0 auto;
+    white-space:nowrap;
+    font-size:11px; color:var(--text-dim);
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:9px; padding:0 10px 0 12px;
+  }
+  .filtres label input{border:none; background:none; padding:9px 0; width:52px;}
+
+  /* ---- taula ---- */
+  /* El contenidor és el que llisca en horitzontal: la pàgina no s'ha de moure mai. */
+  .taula-caixa{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:12px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  }
+  table{border-collapse:separate; border-spacing:0; width:100%; font-size:12px;}
+  th, td{padding:8px 9px; white-space:nowrap; font-variant-numeric:tabular-nums;}
+  th{
+    position:sticky; top:0; z-index:2;
+    background:var(--bg-raised-2); color:var(--text-dim);
+    font-weight:600; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+    cursor:pointer; user-select:none; border-bottom:1px solid var(--line);
+  }
+  th:hover{color:var(--text);}
+  th.ordenat{color:var(--pink);}
+  th .fletxa{font-size:9px; margin-left:3px;}
+  td{border-bottom:1px solid var(--line);}
+  tbody tr:last-child td{border-bottom:none;}
+  /* Primera columna fixa: el nom sempre visible mentre es llisca. */
+  th:first-child, td:first-child{
+    position:sticky; left:0; z-index:1; text-align:left;
+    background:var(--bg-raised); max-width:150px; overflow:hidden; text-overflow:ellipsis;
+  }
+  th:first-child{z-index:3; background:var(--bg-raised-2);}
+  td:not(:first-child), th:not(:first-child){text-align:right;}
+  tbody tr:hover td{background:var(--bg-raised-2);}
+  tbody tr:hover td:first-child{background:var(--bg-raised-2);}
+  .pos{color:var(--ok);} .neg{color:var(--mal);}
+  .fluix{color:var(--text-dim);}
+
+  .nota{font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
+  .estat{
+    text-align:center; color:var(--text-dim); font-size:13px;
+    padding:36px 14px; line-height:1.6;
+  }
+  .estat b{color:var(--text);}
+  code{
+    background:var(--bg-raised-2); border:1px solid var(--line);
+    border-radius:5px; padding:1px 5px; font-size:11px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a href="index.html" class="back-btn" aria-label="Enrere">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <h1>Estadístiques COPA</h1>
+  </div>
+  <div id="contingut"><div class="estat">Carregant…</div></div>
+</div>
+
+<script>
+  /* ── Configuració ────────────────────────────────────────────────────────
+     URL i token del web app d'Apps Script instal·lat al full de la base COPA
+     (apps_script_copa.gs). Mentre no hi siguin, la pàgina ho diu i no peta. */
+  const COPA_URL = "__PENDENT_URL_COPA__";
+  const COPA_TOKEN = "__PENDENT_TOKEN_COPA__";
+  const TEMPORADA = "2026-27";
+  const COMPETICIO = "COPA";
+
+  // Punts de classificació. L'especificació els deixa pendents de confirmar amb
+  // les bases de la FCBQ: si són uns altres, es canvien aquí i prou.
+  const PUNTS_VICTORIA = 2, PUNTS_DERROTA = 1;
+  // Llindar per fiar-se de l'On/Off d'una jugadora (possessions ON i OFF).
+  const MIN_POSS_ONOFF = 150;
+
+  const ESPERES = [1200, 3500], TEMPS_MAX = 12000;
+  const dorm = (ms) => new Promise(r => setTimeout(r, ms));
+  const escapa = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const n = (v) => { const x = parseFloat(v); return isNaN(x) ? 0 : x; };
+
+  async function llegeix(intents = 3){
+    const url = COPA_URL + (COPA_URL.includes('?') ? '&' : '?') +
+      'token=' + encodeURIComponent(COPA_TOKEN) +
+      '&temporada=' + encodeURIComponent(TEMPORADA) +
+      '&competicio=' + encodeURIComponent(COMPETICIO);
+    let ultim;
+    for (let i = 0; i < intents; i++){
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), TEMPS_MAX);
+      try{
+        const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        if (d && d.error) throw new Error(d.error);
+        return d;
+      } catch(e){
+        ultim = e;
+        if (i < intents - 1) await dorm(ESPERES[Math.min(i, ESPERES.length - 1)]);
+      } finally { clearTimeout(id); }
+    }
+    throw ultim;
+  }
+
+  // cols/rows -> llista d'objectes
+  function aObjectes(taula){
+    if (!taula || !taula.cols) return [];
+    return (taula.rows || []).map(r => {
+      const o = {};
+      taula.cols.forEach((c, i) => { o[c] = r[i]; });
+      return o;
+    });
+  }
+
+  // ── Mètriques ───────────────────────────────────────────────────────────
+  const pct = (num, den) => den > 0 ? num / den * 100 : null;
+  const ts_pct = (pts, tci, tli) => pct(pts, 2 * (tci + 0.44 * tli));
+  const efg_pct = (t2c, t3c, tci) => pct(t2c + t3c + 0.5 * t3c, tci);
+
+  function agregaEquips(equipPartit, nomsCurts){
+    const per = {};
+    equipPartit.forEach(f => {
+      const k = f.equip;
+      if (!per[k]) per[k] = {
+        equip: k, pj: 0, v: 0, d: 0, e: 0, pts: 0, pts_rival: 0,
+        poss: 0, poss_rival: 0, t2c: 0, t2i: 0, t3c: 0, t3i: 0,
+        tlc: 0, tli: 0, faltes: 0,
+      };
+      const a = per[k];
+      a.pj++;
+      if (f.resultat === 'V') a.v++; else if (f.resultat === 'D') a.d++; else a.e++;
+      ['pts','pts_rival','poss','poss_rival','t2c','t2i','t3c','t3i','tlc','tli','faltes']
+        .forEach(c => { a[c] += n(f[c]); });
+    });
+    return Object.values(per).map(a => {
+      const tci = a.t2i + a.t3i;
+      return Object.assign(a, {
+        nom: nomsCurts[a.equip] || a.equip,
+        punts_clas: a.v * PUNTS_VICTORIA + a.d * PUNTS_DERROTA,
+        dif: a.pts - a.pts_rival,
+        off: pct(a.pts, a.poss),
+        def: pct(a.pts_rival, a.poss_rival),
+        net: pct(a.pts, a.poss) - pct(a.pts_rival, a.poss_rival),
+        ritme: a.pj > 0 ? (a.poss + a.poss_rival) / (2 * a.pj) : null,
+        ts: ts_pct(a.pts, tci, a.tli),
+        efg: efg_pct(a.t2c, a.t3c, tci),
+        tc_pct: pct(a.t2c + a.t3c, tci),
+        t2_pct: pct(a.t2c, a.t2i), t3_pct: pct(a.t3c, a.t3i), tl_pct: pct(a.tlc, a.tli),
+      });
+    });
+  }
+
+  function agregaJugadores(jugadoraPartit, equipPartit, nomsCurts){
+    // Totals de l'equip per partit: calen per deduir els valors OFF, que no es
+    // desen (OFF = total de l'equip − ON).
+    const totalEquip = {};
+    equipPartit.forEach(f => {
+      totalEquip[f.match_id + '|' + f.equip] = {
+        pts: n(f.pts), pts_rival: n(f.pts_rival),
+        poss: n(f.poss), poss_rival: n(f.poss_rival),
+        tci: n(f.t2i) + n(f.t3i), tli: n(f.tli),
+      };
+    });
+
+    const per = {};
+    jugadoraPartit.forEach(f => {
+      const k = f.equip + '|' + f.jugadora;
+      if (!per[k]) per[k] = {
+        jugadora: f.jugadora, equip: f.equip, pj: 0,
+        min: 0, pts: 0, t2c: 0, t2i: 0, t3c: 0, t3i: 0, tlc: 0, tli: 0, faltes: 0,
+        on_pts: 0, on_pts_c: 0, on_poss: 0, on_poss_r: 0, on_tci: 0, on_tli: 0,
+        off_pts: 0, off_pts_c: 0, off_poss: 0, off_poss_r: 0, off_tci: 0, off_tli: 0,
+      };
+      const a = per[k];
+      a.pj++;
+      ['min','pts','t2c','t2i','t3c','t3i','tlc','tli','faltes'].forEach(c => { a[c] += n(f[c]); });
+      a.on_pts   += n(f.eq_pts_on);       a.on_pts_c  += n(f.eq_pts_contra_on);
+      a.on_poss  += n(f.eq_poss_on);      a.on_poss_r += n(f.eq_poss_rival_on);
+      a.on_tci   += n(f.eq_tci_on);       a.on_tli    += n(f.eq_tli_on);
+
+      const t = totalEquip[f.match_id + '|' + f.equip];
+      if (t){
+        a.off_pts   += t.pts - n(f.eq_pts_on);
+        a.off_pts_c += t.pts_rival - n(f.eq_pts_contra_on);
+        a.off_poss  += t.poss - n(f.eq_poss_on);
+        a.off_poss_r+= t.poss_rival - n(f.eq_poss_rival_on);
+        a.off_tci   += t.tci - n(f.eq_tci_on);
+        a.off_tli   += t.tli - n(f.eq_tli_on);
+      }
+    });
+
+    return Object.values(per).map(a => {
+      const tci = a.t2i + a.t3i;
+      const netOn = pct(a.on_pts, a.on_poss) - pct(a.on_pts_c, a.on_poss_r);
+      const netOff = pct(a.off_pts, a.off_poss) - pct(a.off_pts_c, a.off_poss_r);
+      const fiable = a.on_poss >= MIN_POSS_ONOFF && a.off_poss >= MIN_POSS_ONOFF;
+      return Object.assign(a, {
+        nom: a.jugadora,
+        equip_curt: nomsCurts[a.equip] || a.equip,
+        min_p: a.pj > 0 ? a.min / a.pj : 0,
+        pts_p: a.pj > 0 ? a.pts / a.pj : 0,
+        faltes_p: a.pj > 0 ? a.faltes / a.pj : 0,
+        pts40: a.min > 0 ? 40 * a.pts / a.min : null,
+        ts: ts_pct(a.pts, tci, a.tli),
+        efg: efg_pct(a.t2c, a.t3c, tci),
+        tc_pct: pct(a.t2c + a.t3c, tci),
+        // Impacte i +/- són el mateix número a Micki: punts a favor menys en
+        // contra amb ella a pista.
+        pm: a.on_pts - a.on_pts_c,
+        usage: pct((tci + 0.44 * a.tli), (a.on_tci + 0.44 * a.on_tli)),
+        off_rtg: pct(a.on_pts, a.on_poss),
+        def_rtg: pct(a.on_pts_c, a.on_poss_r),
+        net_rtg: netOn,
+        onoff: fiable ? netOn - netOff : null,
+        ts_on: ts_pct(a.on_pts, a.on_tci, a.on_tli),
+        ts_off: ts_pct(a.off_pts, a.off_tci, a.off_tli),
+      });
+    });
+  }
+
+  function agregaParelles(parellaPartit, nomsCurts){
+    const per = {};
+    (parellaPartit || []).forEach(f => {
+      const k = f.equip + '|' + f.jugadora_a + '|' + f.jugadora_b;
+      if (!per[k]) per[k] = {
+        equip: f.equip, a: f.jugadora_a, b: f.jugadora_b,
+        pj: 0, min: 0, pf: 0, pc: 0,
+      };
+      const x = per[k];
+      x.pj++; x.min += n(f.min); x.pf += n(f.pf); x.pc += n(f.pc);
+    });
+    return Object.values(per).map(x => Object.assign(x, {
+      nom: x.a + ' + ' + x.b,
+      equip_curt: nomsCurts[x.equip] || x.equip,
+      pm: x.pf - x.pc,
+      pm_min: x.min > 0 ? (x.pf - x.pc) / x.min : 0,
+    }));
+  }
+
+  // ── Taula ───────────────────────────────────────────────────────────────
+  const f1 = (v) => v === null || v === undefined || isNaN(v) ? '·' : v.toFixed(1);
+  const f0 = (v) => v === null || v === undefined || isNaN(v) ? '·' : Math.round(v);
+  const fSig = (v) => v === null || v === undefined || isNaN(v) ? '·' :
+                      (v > 0 ? '+' : '') + v.toFixed(1);
+  const classeSigne = (v) => v === null || isNaN(v) ? 'fluix' : (v > 0 ? 'pos' : (v < 0 ? 'neg' : ''));
+
+  let ordre = { clau: null, desc: true };
+
+  function pintaTaula(contenidor, cols, files, defecte){
+    if (!files.length){
+      contenidor.innerHTML = '<div class="estat">Cap fila amb aquests filtres.</div>';
+      return;
+    }
+    if (ordre.clau === null || !cols.some(c => c.clau === ordre.clau)){
+      ordre = { clau: defecte || cols[0].clau, desc: true };
+    }
+    const ordenades = files.slice().sort((x, y) => {
+      const a = x[ordre.clau], b = y[ordre.clau];
+      const buitA = a === null || a === undefined || (typeof a === 'number' && isNaN(a));
+      const buitB = b === null || b === undefined || (typeof b === 'number' && isNaN(b));
+      if (buitA && buitB) return 0;
+      if (buitA) return 1;
+      if (buitB) return -1;
+      if (typeof a === 'string' || typeof b === 'string')
+        return ordre.desc ? String(b).localeCompare(String(a)) : String(a).localeCompare(String(b));
+      return ordre.desc ? b - a : a - b;
+    });
+
+    let h = '<div class="taula-caixa"><table><thead><tr>';
+    cols.forEach(c => {
+      const act = c.clau === ordre.clau;
+      h += '<th data-clau="' + c.clau + '" class="' + (act ? 'ordenat' : '') + '"' +
+           (c.ajuda ? ' title="' + escapa(c.ajuda) + '"' : '') + '>' + escapa(c.tit) +
+           (act ? '<span class="fletxa">' + (ordre.desc ? '▼' : '▲') + '</span>' : '') + '</th>';
+    });
+    h += '</tr></thead><tbody>';
+    ordenades.forEach(f => {
+      h += '<tr>';
+      cols.forEach(c => {
+        const v = c.val(f);
+        h += '<td class="' + (c.classe ? c.classe(f) : '') + '">' + v + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+    contenidor.innerHTML = h;
+
+    contenidor.querySelectorAll('th').forEach(th => {
+      th.addEventListener('click', () => {
+        const k = th.dataset.clau;
+        ordre = (ordre.clau === k) ? { clau: k, desc: !ordre.desc } : { clau: k, desc: true };
+        pintaTaula(contenidor, cols, files, defecte);
+      });
+    });
+  }
+
+  // ── Vistes ──────────────────────────────────────────────────────────────
+  const COLS_EQUIP = [
+    { tit: 'Equip', clau: 'nom', val: f => escapa(f.nom) },
+    { tit: 'PJ', clau: 'pj', val: f => f.pj },
+    { tit: 'V', clau: 'v', val: f => f.v },
+    { tit: 'D', clau: 'd', val: f => f.d },
+    { tit: 'Pts', clau: 'punts_clas', val: f => f.punts_clas, ajuda: 'Punts de classificació' },
+    { tit: 'PF', clau: 'pts', val: f => f.pts, ajuda: 'Punts a favor' },
+    { tit: 'PC', clau: 'pts_rival', val: f => f.pts_rival, ajuda: 'Punts en contra' },
+    { tit: 'Dif', clau: 'dif', val: f => fSig(f.dif), classe: f => classeSigne(f.dif) },
+    { tit: 'Off', clau: 'off', val: f => f1(f.off), ajuda: 'Punts per 100 possessions' },
+    { tit: 'Def', clau: 'def', val: f => f1(f.def), ajuda: 'Punts rebuts per 100 possessions' },
+    { tit: 'Net', clau: 'net', val: f => fSig(f.net), classe: f => classeSigne(f.net) },
+    { tit: 'Ritme', clau: 'ritme', val: f => f1(f.ritme), ajuda: 'Possessions per partit' },
+    { tit: 'TS%', clau: 'ts', val: f => f1(f.ts), ajuda: 'True Shooting' },
+    { tit: 'eFG%', clau: 'efg', val: f => f1(f.efg) },
+    { tit: 'TC%', clau: 'tc_pct', val: f => f1(f.tc_pct), ajuda: 'Tirs de camp' },
+    { tit: 'T2%', clau: 't2_pct', val: f => f1(f.t2_pct) },
+    { tit: 'T3%', clau: 't3_pct', val: f => f1(f.t3_pct) },
+    { tit: 'T1%', clau: 'tl_pct', val: f => f1(f.tl_pct) },
+    { tit: 'Poss', clau: 'poss', val: f => f0(f.poss) },
+  ];
+
+  const COLS_JUG = [
+    { tit: 'Jugadora', clau: 'nom', val: f => escapa(f.nom) },
+    { tit: 'Equip', clau: 'equip_curt', val: f => '<span class="fluix">' + escapa(f.equip_curt) + '</span>' },
+    { tit: 'PJ', clau: 'pj', val: f => f.pj },
+    { tit: 'Min/P', clau: 'min_p', val: f => f1(f.min_p) },
+    { tit: 'Pts/P', clau: 'pts_p', val: f => f1(f.pts_p) },
+    { tit: 'Pts/40', clau: 'pts40', val: f => f1(f.pts40) },
+    { tit: '+/-', clau: 'pm', val: f => fSig(f.pm), classe: f => classeSigne(f.pm),
+      ajuda: 'Punts a favor menys en contra amb ella a pista. És el mateix que l’Impacte.' },
+    { tit: 'TS%', clau: 'ts', val: f => f1(f.ts) },
+    { tit: 'eFG%', clau: 'efg', val: f => f1(f.efg) },
+    { tit: 'TC%', clau: 'tc_pct', val: f => f1(f.tc_pct) },
+    { tit: 'Usage', clau: 'usage', val: f => f1(f.usage),
+      ajuda: 'Percentatge de tirs de l’equip que assumeix mentre és a pista' },
+    { tit: 'Off', clau: 'off_rtg', val: f => f1(f.off_rtg) },
+    { tit: 'Def', clau: 'def_rtg', val: f => f1(f.def_rtg) },
+    { tit: 'Net', clau: 'net_rtg', val: f => fSig(f.net_rtg), classe: f => classeSigne(f.net_rtg) },
+    { tit: 'On/Off', clau: 'onoff', val: f => fSig(f.onoff), classe: f => classeSigne(f.onoff),
+      ajuda: 'Net amb ella menys Net sense ella. Buit si no hi ha prou possessions.' },
+    { tit: 'TS% ON', clau: 'ts_on', val: f => f1(f.ts_on), ajuda: 'TS% de l’equip amb ella a pista' },
+    { tit: 'TS% OFF', clau: 'ts_off', val: f => f1(f.ts_off), ajuda: 'TS% de l’equip sense ella' },
+    { tit: 'Faltes', clau: 'faltes', val: f => f.faltes },
+    { tit: 'Min', clau: 'min', val: f => f0(f.min) },
+  ];
+
+  const COLS_PAR = [
+    { tit: 'Parella', clau: 'nom', val: f => escapa(f.nom) },
+    { tit: 'Equip', clau: 'equip_curt', val: f => '<span class="fluix">' + escapa(f.equip_curt) + '</span>' },
+    { tit: 'Part.', clau: 'pj', val: f => f.pj },
+    { tit: 'Min', clau: 'min', val: f => f1(f.min) },
+    { tit: 'PF', clau: 'pf', val: f => f.pf },
+    { tit: 'PC', clau: 'pc', val: f => f.pc },
+    { tit: '+/-', clau: 'pm', val: f => fSig(f.pm), classe: f => classeSigne(f.pm) },
+    { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
+  ];
+
+  let DADES = null, VISTA = 'equips';
+
+  function pinta(){
+    const box = document.getElementById('contingut');
+    const nomsCurts = {};
+    aObjectes(DADES.taules.equips).forEach(e => {
+      if (e.nom_fcbq) nomsCurts[e.nom_fcbq] = e.nom_curt || e.nom_fcbq;
+    });
+
+    const eqP = aObjectes(DADES.taules.equip_partit);
+    const jugP = aObjectes(DADES.taules.jugadora_partit);
+    const parP = aObjectes(DADES.taules.parella_partit);
+
+    if (!eqP.length){
+      box.innerHTML = '<div class="estat">La base de la COPA encara no té cap partit.<br>' +
+        'Envia\'n algun des de Micki i aquí apareixeran.</div>';
+      return;
+    }
+
+    let h = '<div class="tabs">' +
+      ['equips','jugadores','parelles'].map(v =>
+        '<div class="tab ' + (VISTA === v ? 'actiu' : '') + '" data-v="' + v + '">' +
+        (v === 'equips' ? 'Equips' : v === 'jugadores' ? 'Jugadores' : 'Parelles') + '</div>'
+      ).join('') + '</div><div id="filtres"></div><div id="taula"></div>' +
+      '<div class="nota" id="nota"></div>';
+    box.innerHTML = h;
+
+    box.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+      VISTA = t.dataset.v; ordre = { clau: null, desc: true }; pinta();
+    }));
+
+    const fBox = document.getElementById('filtres');
+    const tBox = document.getElementById('taula');
+    const nota = document.getElementById('nota');
+    const equipsLlista = [...new Set(eqP.map(f => f.equip))].sort();
+    const opcionsEquip = '<option value="">Tots els equips</option>' +
+      equipsLlista.map(e => '<option value="' + escapa(e) + '">' + escapa(nomsCurts[e] || e) + '</option>').join('');
+
+    if (VISTA === 'equips'){
+      fBox.innerHTML = '';
+      pintaTaula(tBox, COLS_EQUIP, agregaEquips(eqP, nomsCurts), 'punts_clas');
+      nota.innerHTML = 'Classificació amb ' + PUNTS_VICTORIA + ' punts per victòria i ' +
+        PUNTS_DERROTA + ' per derrota. Toca una capçalera per ordenar.';
+    }
+
+    if (VISTA === 'jugadores'){
+      fBox.innerHTML =
+        '<select id="f_equip">' + opcionsEquip + '</select>' +
+        '<label>Mín. partits <input type="number" id="f_pj" value="1" min="1" step="1"></label>' +
+        '<input type="search" id="f_nom" placeholder="Cerca una jugadora">';
+      const refresca = () => {
+        const eq = document.getElementById('f_equip').value;
+        const minPj = parseInt(document.getElementById('f_pj').value || '1', 10);
+        const txt = (document.getElementById('f_nom').value || '').toLowerCase().trim();
+        let files = agregaJugadores(jugP, eqP, nomsCurts);
+        if (eq) files = files.filter(f => f.equip === eq);
+        files = files.filter(f => f.pj >= minPj);
+        if (txt) files = files.filter(f => f.nom.toLowerCase().includes(txt));
+        pintaTaula(tBox, COLS_JUG, files, 'pts_p');
+      };
+      ['f_equip','f_pj','f_nom'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener(id === 'f_nom' ? 'input' : 'change', refresca);
+      });
+      refresca();
+      nota.innerHTML = 'L’On/Off queda buit quan no hi ha ' + MIN_POSS_ONOFF +
+        ' possessions amb la jugadora i sense ella: per sota, el número no diu res.';
+    }
+
+    if (VISTA === 'parelles'){
+      if (!parP.length){
+        fBox.innerHTML = '';
+        tBox.innerHTML = '<div class="estat">Encara no hi ha dades de parelles.<br>' +
+          'Arriben amb els partits enviats amb l’esquema v2 o posterior.</div>';
+        nota.innerHTML = '';
+        return;
+      }
+      fBox.innerHTML =
+        '<select id="f_equip2">' + opcionsEquip + '</select>' +
+        '<label>Mín. minuts <input type="number" id="f_min" value="20" min="0" step="5"></label>';
+      const refresca2 = () => {
+        const eq = document.getElementById('f_equip2').value;
+        const minMin = parseFloat(document.getElementById('f_min').value || '0');
+        let files = agregaParelles(parP, nomsCurts);
+        if (eq) files = files.filter(f => f.equip === eq);
+        files = files.filter(f => f.min >= minMin);
+        pintaTaula(tBox, COLS_PAR, files, 'min');
+      };
+      ['f_equip2','f_min'].forEach(id =>
+        document.getElementById(id).addEventListener('change', refresca2));
+      refresca2();
+      nota.innerHTML = 'Minuts que han compartit pista i què va passar mentre hi eren totes dues.';
+    }
+  }
+
+  async function carrega(){
+    const box = document.getElementById('contingut');
+    if (COPA_URL.indexOf('__PENDENT') === 0){
+      box.innerHTML = '<div class="estat"><b>Encara falta connectar la base de la COPA.</b><br><br>' +
+        'Cal instal·lar <code>apps_script_copa.gs</code> al full de la COPA, desplegar-lo ' +
+        'i enganxar aquí l’URL i el token.</div>';
+      return;
+    }
+    box.innerHTML = '<div class="estat">Carregant…</div>';
+    try{
+      DADES = await llegeix();
+      pinta();
+    } catch(err){
+      box.innerHTML = '<div class="estat">No s’han pogut carregar les dades.<br>' +
+        escapa(String(err && err.message || err)) + '</div>';
+    }
+  }
+
+  carrega();
+</script>
+</body>
+</html>
