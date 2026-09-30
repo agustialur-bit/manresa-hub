@@ -20,6 +20,10 @@
     --ok:#3ddc97; --mal:#ff5a4e;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  /* Diu al navegador que la pagina es fosca: aixi el desplegable dels filtres,
+     les fletxes i les barres de desplaçament els pinta foscos ell mateix, en
+     lloc del blanc per defecte del sistema. */
+  html{color-scheme:dark;}
   html,body{margin:0; padding:0; background:var(--bg); color:var(--text);}
   body{
     font-family:'Inter',system-ui,sans-serif;
@@ -52,9 +56,18 @@
 
   /* ---- filtres ---- */
   .filtres{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
-  .filtres select{flex:0 1 auto; max-width:48%;}
+  .filtres select{
+    flex:0 1 auto; max-width:48%;
+    /* Fletxa propia: la del sistema no segueix el color del text. */
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b93a3' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center;
+    padding-right:28px;
+  }
+  /* Les opcions desplegades: alguns navegadors les pinten segons aixo. */
+  .filtres select option{background:var(--bg-raised); color:var(--text);}
   .filtres select, .filtres input{
-    background:var(--bg-raised); border:1px solid var(--line); color:var(--text);
+    background-color:var(--bg-raised); border:1px solid var(--line); color:var(--text);
     border-radius:9px; padding:9px 10px; font-family:'Inter',sans-serif; font-size:12.5px;
     min-width:0;
   }
@@ -267,6 +280,9 @@
         ts: ts_pct(a.pts, tci, a.tli),
         efg: efg_pct(a.t2c, a.t3c, tci),
         tc_pct: pct(a.t2c + a.t3c, tci),
+        t2_pct: pct(a.t2c, a.t2i),
+        t3_pct: pct(a.t3c, a.t3i),
+        tl_pct: pct(a.tlc, a.tli),
         // Impacte i +/- són el mateix número a Micki: punts a favor menys en
         // contra amb ella a pista.
         pm: a.on_pts - a.on_pts_c,
@@ -392,6 +408,10 @@
     { tit: 'TS%', clau: 'ts', val: f => f1(f.ts) },
     { tit: 'eFG%', clau: 'efg', val: f => f1(f.efg) },
     { tit: 'TC%', clau: 'tc_pct', val: f => f1(f.tc_pct) },
+    { tit: 'T3%', clau: 't3_pct', val: f => f1(f.t3_pct),
+      ajuda: 'Tirs de 3 convertits sobre intentats' },
+    { tit: 'T1%', clau: 'tl_pct', val: f => f1(f.tl_pct),
+      ajuda: 'Tirs lliures convertits sobre intentats' },
     { tit: 'Usage', clau: 'usage', val: f => f1(f.usage),
       ajuda: 'Percentatge de tirs de l’equip que assumeix mentre és a pista' },
     { tit: 'Off', clau: 'off_rtg', val: f => f1(f.off_rtg) },
@@ -476,7 +496,7 @@
       ['equips','jugadores','parelles'].map(v =>
         '<div class="tab ' + (VISTA === v ? 'actiu' : '') + '" data-v="' + v + '">' +
         (v === 'equips' ? 'Equips' : v === 'jugadores' ? 'Jugadores' : 'Parelles') + '</div>'
-      ).join('') + '</div><div id="filtres"></div><div id="taula"></div>' +
+      ).join('') + '</div><div id="filtres" class="filtres"></div><div id="taula"></div>' +
       '<div class="nota" id="nota"></div>';
     box.innerHTML = h;
 
