@@ -123,6 +123,34 @@
   .vista-parelles .jug2{display:block; color:var(--text-dim);}
   .vista-parelles .jug2::before{content:"+ ";}
 
+  /* ---- percentils ---- */
+  .pc-cap{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:14px;
+  }
+  .pc-equip{font-family:'Oswald',sans-serif; font-size:18px; text-transform:uppercase;}
+  .pc-sub{font-size:11.5px; color:var(--text-dim); margin-top:4px; line-height:1.45;}
+  .pc-llista{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:12px; padding:14px 16px;
+  }
+  .pc-fila{margin-bottom:15px;}
+  .pc-fila:last-child{margin-bottom:0;}
+  .pc-dalt{
+    display:flex; justify-content:space-between; align-items:baseline;
+    gap:10px; margin-bottom:5px; font-size:12px;
+  }
+  .pc-nom{color:var(--text);}
+  .pc-nom small{color:var(--text-dim); font-size:10px; margin-left:5px;}
+  .pc-val{color:var(--text-dim); font-variant-numeric:tabular-nums; flex:0 0 auto;}
+  .pc-val b{color:var(--text); font-family:'Oswald',sans-serif; font-size:13px; margin-left:7px;}
+  /* La pista va de 0 a 100. La marca del mig es la mediana de la lliga: a
+     l'esquerra, per sota de la meitat d'equips; a la dreta, per sobre. */
+  .pc-pista{position:relative; height:10px; background:var(--line); border-radius:5px; overflow:hidden;}
+  .pc-plena{height:100%; background:var(--pink); border-radius:5px; width:0; transition:width .8s cubic-bezier(.22,.9,.3,1);}
+  .pc-mediana{position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--text-dim); opacity:.7;}
+  .pc-peu{display:flex; justify-content:space-between; font-size:9.5px; color:var(--text-dim); margin-top:4px;}
+
   .nota{font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
   .estat{
     text-align:center; color:var(--text-dim); font-size:13px;
@@ -224,6 +252,8 @@
       return Object.assign(a, {
         nom: nomsCurts[a.equip] || a.equip,
         punts_clas: a.v * PUNTS_VICTORIA + a.d * PUNTS_DERROTA,
+        pts_p: a.pj > 0 ? a.pts / a.pj : null,
+        pc_p: a.pj > 0 ? a.pts_rival / a.pj : null,
         dif: a.pts - a.pts_rival,
         off: pct(a.pts, a.poss),
         def: pct(a.pts_rival, a.poss_rival),
@@ -485,6 +515,33 @@
       `Def, Net i Ritme d'aquests partits no s'han de mirar</b>: ` + llista + '.';
   }
 
+  /* Percentils. Nomes hi posem metriques que NO depenen de les possessions:
+     Off, Def, Net i Ritme en depenen i ja sabem que amb dades FCBQ son
+     aproximades, o sigui que no tenen lloc en una comparativa d'aquest tipus. */
+  const METRIQUES_PC = [
+    { tit: 'TS%',            clau: 'ts',     alt: true,  dec: 1, ajuda: 'True Shooting' },
+    { tit: 'eFG%',           clau: 'efg',    alt: true,  dec: 1 },
+    { tit: 'TC%',            clau: 'tc_pct', alt: true,  dec: 1, ajuda: 'Tirs de camp' },
+    { tit: 'T2%',            clau: 't2_pct', alt: true,  dec: 1 },
+    { tit: 'T3%',            clau: 't3_pct', alt: true,  dec: 1 },
+    { tit: 'T1%',            clau: 'tl_pct', alt: true,  dec: 1, ajuda: 'Tirs lliures' },
+    { tit: 'Punts a favor',  clau: 'pts_p',  alt: true,  dec: 1, ajuda: 'Per partit' },
+    { tit: 'Punts en contra',clau: 'pc_p',   alt: false, dec: 1, ajuda: 'Per partit. Menys és millor' },
+  ];
+
+  /* Percentil amb empats repartits: (els que queden per sota + mig dels
+     iguals) / total. Si a la metrica menys es millor, es compta al reves. */
+  function percentil(valors, valor, millorAlt){
+    const v = valors.filter(x => x !== null && !isNaN(x));
+    if (!v.length || valor === null || isNaN(valor)) return null;
+    let sota = 0, iguals = 0;
+    v.forEach(x => {
+      if (x === valor) iguals++;
+      else if (millorAlt ? x < valor : x > valor) sota++;
+    });
+    return (sota + iguals / 2) / v.length * 100;
+  }
+
   let DADES = null, VISTA = 'equips';
 
   function pinta(){
@@ -505,10 +562,10 @@
     }
 
     let h = '<div class="tabs">' +
-      ['equips','jugadores','parelles'].map(v =>
-        '<div class="tab ' + (VISTA === v ? 'actiu' : '') + '" data-v="' + v + '">' +
-        (v === 'equips' ? 'Equips' : v === 'jugadores' ? 'Jugadores' : 'Parelles') + '</div>'
-      ).join('') + '</div><div id="filtres" class="filtres"></div><div id="taula"></div>' +
+      [['equips','Equips'],['jugadores','Jugadores'],['parelles','Parelles'],['percentils','Percentils']]
+        .map(v => '<div class="tab ' + (VISTA === v[0] ? 'actiu' : '') + '" data-v="' + v[0] + '">' +
+                  v[1] + '</div>')
+        .join('') + '</div><div id="filtres" class="filtres"></div><div id="taula"></div>' +
       '<div class="nota" id="nota"></div>';
     box.innerHTML = h;
 
@@ -553,6 +610,53 @@
       refresca();
       nota.innerHTML = 'L’On/Off queda buit quan no hi ha ' + MIN_POSS_ONOFF +
         ' possessions amb la jugadora i sense ella: per sota, el número no diu res.';
+    }
+
+    if (VISTA === 'percentils'){
+      const equips = agregaEquips(eqP, nomsCurts);
+      const meu = equips.find(e => /MANRESA/i.test(e.equip)) || equips[0];
+      fBox.innerHTML = '<select id="f_pc">' + equips
+        .slice().sort((a, b) => a.nom.localeCompare(b.nom))
+        .map(e => '<option value="' + escapa(e.equip) + '"' +
+                  (e.equip === meu.equip ? ' selected' : '') + '>' +
+                  escapa(e.nom) + '</option>').join('') + '</select>';
+
+      const dibuixa = () => {
+        const tria = document.getElementById('f_pc').value;
+        const eq = equips.find(e => e.equip === tria) || meu;
+        let h = '<div class="pc-cap"><div class="pc-equip">' + escapa(eq.nom) + '</div>' +
+          '<div class="pc-sub">Percentil dins de ' + equips.length + ' equips. 50 és la mediana: ' +
+          'per damunt, millor que la meitat de la lliga.' +
+          (eq.pj < 4 ? ' <b style="color:var(--mal)">Amb ' + eq.pj + ' partit' +
+             (eq.pj === 1 ? '' : 's') + ' jugat' + (eq.pj === 1 ? '' : 's') +
+             ', aquests números són molt volàtils: un bon dia de tir ja et puja al capdamunt.</b>' : '') +
+          '</div></div>';
+
+        h += '<div class="pc-llista">';
+        METRIQUES_PC.forEach(m => {
+          const valors = equips.map(e => e[m.clau]);
+          const meuV = eq[m.clau];
+          const pc = percentil(valors, meuV, m.alt);
+          h += '<div class="pc-fila">' +
+            '<div class="pc-dalt"><span class="pc-nom">' + escapa(m.tit) +
+              (m.ajuda ? '<small>' + escapa(m.ajuda) + '</small>' : '') + '</span>' +
+            '<span class="pc-val">' + (meuV === null || isNaN(meuV) ? '·' : meuV.toFixed(m.dec)) +
+              '<b>' + (pc === null ? '·' : Math.round(pc)) + '</b></span></div>' +
+            '<div class="pc-pista"><div class="pc-plena" data-w="' + (pc === null ? 0 : pc) + '"></div>' +
+            '<div class="pc-mediana"></div></div>' +
+            '</div>';
+        });
+        h += '</div>';
+        tBox.innerHTML = h;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          tBox.querySelectorAll('.pc-plena').forEach(el => { el.style.width = el.dataset.w + '%'; });
+        }));
+      };
+      document.getElementById('f_pc').addEventListener('change', dibuixa);
+      dibuixa();
+      nota.innerHTML = 'Només hi surten mètriques que no depenen de les possessions: ' +
+        'Off, Def, Net i Ritme en depenen i amb dades de la FCBQ són aproximades.';
+      return;
     }
 
     if (VISTA === 'parelles'){
