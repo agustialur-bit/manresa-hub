@@ -143,7 +143,8 @@
   .pc-nom{color:var(--text);}
   .pc-nom small{color:var(--text-dim); font-size:10px; margin-left:5px;}
   .pc-val{color:var(--text-dim); font-variant-numeric:tabular-nums; flex:0 0 auto;}
-  .pc-val b{color:var(--text); font-family:'Oswald',sans-serif; font-size:13px; margin-left:7px;}
+  .pc-val i{font-style:normal; opacity:.75; font-size:11px; margin-left:8px;}
+  .pc-val b{color:var(--text); font-family:'Oswald',sans-serif; font-size:13px; margin-left:8px;}
   /* La pista va de 0 a 100. La marca del mig es la mediana de la lliga: a
      l'esquerra, per sota de la meitat d'equips; a la dreta, per sobre. */
   .pc-pista{position:relative; height:10px; background:var(--line); border-radius:5px; overflow:hidden;}
@@ -529,6 +530,16 @@
     { tit: 'Punts en contra',clau: 'pc_p',   alt: false, dec: 1, ajuda: 'Per partit. Menys és millor' },
   ];
 
+  /* La mediana es l'equip del mig, i es exactament el que marca la ratlla de
+     la barra al 50. Per aixo es aquesta i no la mitjana aritmetica: si hi
+     posessim la mitjana, el numero i la barra es podrien contradir. */
+  function mediana(valors){
+    const v = valors.filter(x => x !== null && !isNaN(x)).sort((a, b) => a - b);
+    if (!v.length) return null;
+    const m = Math.floor(v.length / 2);
+    return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+  }
+
   /* Percentil amb empats repartits: (els que queden per sota + mig dels
      iguals) / total. Si a la metrica menys es millor, es compta al reves. */
   function percentil(valors, valor, millorAlt){
@@ -625,8 +636,9 @@
         const tria = document.getElementById('f_pc').value;
         const eq = equips.find(e => e.equip === tria) || meu;
         let h = '<div class="pc-cap"><div class="pc-equip">' + escapa(eq.nom) + '</div>' +
-          '<div class="pc-sub">Percentil dins de ' + equips.length + ' equips. 50 és la mediana: ' +
-          'per damunt, millor que la meitat de la lliga.' +
+          '<div class="pc-sub">Percentil dins de ' + equips.length + ' equips. ' +
+          '<b>lliga</b> és la mediana, l’equip que queda al mig, i és on cau la ratlla ' +
+          'de les barres: per damunt, millor que la meitat de la competició.' +
           (eq.pj < 4 ? ' <b style="color:var(--mal)">Amb ' + eq.pj + ' partit' +
              (eq.pj === 1 ? '' : 's') + ' jugat' + (eq.pj === 1 ? '' : 's') +
              ', aquests números són molt volàtils: un bon dia de tir ja et puja al capdamunt.</b>' : '') +
@@ -637,10 +649,12 @@
           const valors = equips.map(e => e[m.clau]);
           const meuV = eq[m.clau];
           const pc = percentil(valors, meuV, m.alt);
+          const med = mediana(valors);
           h += '<div class="pc-fila">' +
             '<div class="pc-dalt"><span class="pc-nom">' + escapa(m.tit) +
               (m.ajuda ? '<small>' + escapa(m.ajuda) + '</small>' : '') + '</span>' +
             '<span class="pc-val">' + (meuV === null || isNaN(meuV) ? '·' : meuV.toFixed(m.dec)) +
+              '<i>lliga ' + (med === null ? '·' : med.toFixed(m.dec)) + '</i>' +
               '<b>' + (pc === null ? '·' : Math.round(pc)) + '</b></span></div>' +
             '<div class="pc-pista"><div class="pc-plena" data-w="' + (pc === null ? 0 : pc) + '"></div>' +
             '<div class="pc-mediana"></div></div>' +
