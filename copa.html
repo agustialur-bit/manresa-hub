@@ -112,6 +112,17 @@
   .pos{color:var(--ok);} .neg{color:var(--mal);}
   .fluix{color:var(--text-dim);}
 
+  /* Les parelles son dos noms sencers i no caben en una linia. En comptes de
+     tallar-los o de posar un desplacament dins la cel·la -que competiria amb el
+     de la taula-, es parteixen en dues linies. */
+  .vista-parelles td:first-child, .vista-parelles th:first-child{
+    /* min-width i no width: amb tantes columnes, la taula encongeix el que pot
+       i un 'width' no s'hi resisteix. */
+    white-space:normal; max-width:none; min-width:168px; line-height:1.3;
+  }
+  .vista-parelles .jug2{display:block; color:var(--text-dim);}
+  .vista-parelles .jug2::before{content:"+ ";}
+
   .nota{font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
   .estat{
     text-align:center; color:var(--text-dim); font-size:13px;
@@ -426,7 +437,8 @@
   ];
 
   const COLS_PAR = [
-    { tit: 'Parella', clau: 'nom', val: f => escapa(f.nom) },
+    { tit: 'Parella', clau: 'nom',
+      val: f => escapa(f.a) + '<span class="jug2">' + escapa(f.b) + '</span>' },
     { tit: 'Equip', clau: 'equip_curt', val: f => '<span class="fluix">' + escapa(f.equip_curt) + '</span>' },
     { tit: 'Part.', clau: 'pj', val: f => f.pj },
     { tit: 'Min', clau: 'min', val: f => f1(f.min) },
@@ -506,6 +518,7 @@
 
     const fBox = document.getElementById('filtres');
     const tBox = document.getElementById('taula');
+    tBox.className = 'vista-' + VISTA;
     const nota = document.getElementById('nota');
     const equipsLlista = [...new Set(eqP.map(f => f.equip))].sort();
     const opcionsEquip = '<option value="">Tots els equips</option>' +
