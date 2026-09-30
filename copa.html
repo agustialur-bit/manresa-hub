@@ -416,11 +416,18 @@
     { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
   ];
 
-  /* En un partit de veritat els dos equips tenen gairebe les mateixes
-     possessions: s'alternen. Una diferencia gran vol dir que al play-by-play
-     de la FCBQ hi falten jugades d'un dels dos equips, i llavors els ratings
-     (Off, Def, Net, Ritme) d'aquell partit no valen. Es detecta i es diu, en
-     comptes de deixar que algu es cregui un numero que sabem que es fals. */
+  /* Les possessions s'estimen com a tirs de camp + 0,44 x tirs lliures. La
+     formula de debo tambe restaria els rebots ofensius i sumaria les perdues,
+     pero el play-by-play de la FCBQ NO els publica: nomes dona cistelles,
+     intents fallats, canvis, temps morts i inici i final de periode.
+
+     Consequencia: quan dos equips tiren un nombre molt diferent de vegades
+     -perque un perd moltes pilotes o l'altre agafa molts rebots ofensius- les
+     possessions estimades se separen encara que les reals fossin iguals, i
+     llavors l'Off, el Def, el Net i el Ritme d'aquell partit no son fiables.
+     Comprovat el 30/09/2026: als partits on passa no hi falta cap jugada, els
+     quatre periodes hi son sencers. Es una limitacio de la font, no un error
+     de dades ni de calcul. */
   const LLINDAR_POSS = 12;
 
   function avisPossessions(eqP){
@@ -435,14 +442,15 @@
     if (!dolents.length) return '';
     const llista = dolents
       .sort((a, b) => b.dif - a.dif)
-      .map(d => escapa(d.fs[0].equip) + ' – ' + escapa(d.fs[1].equip) +
-                ' (' + d.dif.toFixed(0) + ')')
+      .map(d => escapa(d.fs[0].equip) + ' – ' + escapa(d.fs[1].equip))
       .join('; ');
-    return '<br><br><b style="color:var(--mal)">Atenció:</b> en ' + dolents.length +
-      ' partit' + (dolents.length > 1 ? 's' : '') + ' els dos equips no tenen possessions ' +
-      'comparables, senyal que al play-by-play de la FCBQ hi falten jugades. ' +
-      'Els punts, els tirs i la classificació hi són bé, però <b>Off, Def, Net i Ritme ' +
-      `d'aquests partits no s'han de mirar</b>: ` + llista + '.';
+    return `<br><br><b style="color:var(--mal)">Compte amb els ratings:</b> en ` +
+      dolents.length + ` partit` + (dolents.length > 1 ? 's' : '') +
+      ` els dos equips van tirar un nombre molt diferent de vegades. Les ` +
+      `possessions s'estimen a partir dels tirs, perquè la FCBQ no publica ni ` +
+      `pèrdues ni rebots ofensius, i quan això passa l'estimació es desvia. Els ` +
+      `punts, els tirs, els percentatges i la classificació hi són bé; <b>Off, ` +
+      `Def, Net i Ritme d'aquests partits no s'han de mirar</b>: ` + llista + '.';
   }
 
   let DADES = null, VISTA = 'equips';
