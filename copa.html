@@ -126,8 +126,8 @@
   /* ── Configuració ────────────────────────────────────────────────────────
      URL i token del web app d'Apps Script instal·lat al full de la base COPA
      (apps_script_copa.gs). Mentre no hi siguin, la pàgina ho diu i no peta. */
-  const COPA_URL = "__PENDENT_URL_COPA__";
-  const COPA_TOKEN = "__PENDENT_TOKEN_COPA__";
+  const COPA_URL = "https://script.google.com/macros/s/AKfycbwKWLjj8g_GxJJq902lBJQ0_xgmrSa24pc9jYhh1uunKavgw8csyZlOKIDDPKhtYsa_dg/exec";
+  const COPA_TOKEN = "martimarcelmartimarcelmartimarcelmartimarcelmarcimarcel34343434349999";
   const TEMPORADA = "2026-27";
   const COMPETICIO = "COPA";
 
@@ -416,6 +416,35 @@
     { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
   ];
 
+  /* En un partit de veritat els dos equips tenen gairebe les mateixes
+     possessions: s'alternen. Una diferencia gran vol dir que al play-by-play
+     de la FCBQ hi falten jugades d'un dels dos equips, i llavors els ratings
+     (Off, Def, Net, Ritme) d'aquell partit no valen. Es detecta i es diu, en
+     comptes de deixar que algu es cregui un numero que sabem que es fals. */
+  const LLINDAR_POSS = 12;
+
+  function avisPossessions(eqP){
+    const per = {};
+    eqP.forEach(f => { (per[f.match_id] = per[f.match_id] || []).push(f); });
+    const dolents = [];
+    Object.values(per).forEach(fs => {
+      if (fs.length !== 2) return;
+      const dif = Math.abs(n(fs[0].poss) - n(fs[1].poss));
+      if (dif >= LLINDAR_POSS) dolents.push({ fs: fs, dif: dif });
+    });
+    if (!dolents.length) return '';
+    const llista = dolents
+      .sort((a, b) => b.dif - a.dif)
+      .map(d => escapa(d.fs[0].equip) + ' – ' + escapa(d.fs[1].equip) +
+                ' (' + d.dif.toFixed(0) + ')')
+      .join('; ');
+    return '<br><br><b style="color:var(--mal)">Atenció:</b> en ' + dolents.length +
+      ' partit' + (dolents.length > 1 ? 's' : '') + ' els dos equips no tenen possessions ' +
+      'comparables, senyal que al play-by-play de la FCBQ hi falten jugades. ' +
+      'Els punts, els tirs i la classificació hi són bé, però <b>Off, Def, Net i Ritme ' +
+      `d'aquests partits no s'han de mirar</b>: ` + llista + '.';
+  }
+
   let DADES = null, VISTA = 'equips';
 
   function pinta(){
@@ -458,7 +487,7 @@
       fBox.innerHTML = '';
       pintaTaula(tBox, COLS_EQUIP, agregaEquips(eqP, nomsCurts), 'punts_clas');
       nota.innerHTML = 'Classificació amb ' + PUNTS_VICTORIA + ' punts per victòria i ' +
-        PUNTS_DERROTA + ' per derrota. Toca una capçalera per ordenar.';
+        PUNTS_DERROTA + ' per derrota. Toca una capçalera per ordenar.' + avisPossessions(eqP);
     }
 
     if (VISTA === 'jugadores'){
