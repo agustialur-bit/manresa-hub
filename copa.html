@@ -152,6 +152,30 @@
   .pc-mediana{position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--text-dim); opacity:.7;}
   .pc-peu{display:flex; justify-content:space-between; font-size:9.5px; color:var(--text-dim); margin-top:4px;}
 
+  /* ---- contribucio per companya ---- */
+  .co-fila{margin-bottom:14px;}
+  .co-fila:last-child{margin-bottom:0;}
+  .co-dalt{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:5px; font-size:12px;}
+  .co-nom{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .co-nom small{color:var(--text-dim); font-size:10px; margin-left:6px;}
+  .co-val{flex:0 0 auto; font-variant-numeric:tabular-nums; color:var(--text-dim);}
+  .co-val b{font-family:'Oswald',sans-serif; font-size:13px; margin-left:8px;}
+  /* Pista amb el zero al mig: a la dreta l'equip guanya amb elles dues a
+     pista, a l'esquerra perd. El diamant es la mitjana propia de la companya. */
+  .co-pista{position:relative; height:16px;}
+  .co-eix{position:absolute; left:0; right:0; top:50%; height:1px; background:var(--line);}
+  .co-zero{position:absolute; top:0; bottom:0; width:1px; background:var(--text-dim); opacity:.55;}
+  .co-barra{position:absolute; top:5px; height:6px; border-radius:3px; background:var(--pink); transition:all .8s cubic-bezier(.22,.9,.3,1);}
+  .co-barra.neg{background:var(--mal);}
+  .co-diamant{
+    position:absolute; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px;
+    background:var(--text); transform:rotate(45deg); border-radius:1px;
+  }
+  .co-llegenda{display:flex; gap:16px; font-size:10.5px; color:var(--text-dim); margin:2px 2px 12px;}
+  .co-llegenda span{display:inline-flex; align-items:center; gap:6px;}
+  .co-mostra{width:14px; height:5px; border-radius:3px; background:var(--pink);}
+  .co-mostra.d{width:8px; height:8px; background:var(--text); transform:rotate(45deg); border-radius:1px;}
+
   .nota{font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
   .estat{
     text-align:center; color:var(--text-dim); font-size:13px;
@@ -530,6 +554,63 @@
     { tit: 'Punts en contra',clau: 'pc_p',   alt: false, dec: 1, ajuda: 'Per partit. Menys és millor' },
   ];
 
+  /* Contribucio per companya. Per cada parella, el +/- per minut que fa l'equip
+     amb les dues a pista (la barra); i per comparar, la mitjana propia de la
+     companya quan juga ella (el diamant). Si la barra queda a la dreta del
+     diamant, l'equip va millor amb aquella companya que el que ella acostuma.
+
+     Tot surt de min_ind i pm_ind, que Micki desa amb el MATEIX motor que calcula
+     les parelles; si es calcules des d'eq_pts_on difereix en algunes jugadores. */
+  function mitjanesIndividuals(jugP){
+    const per = {};
+    jugP.forEach(f => {
+      const k = f.equip + '|' + f.jugadora;
+      if (!per[k]) per[k] = { min: 0, pm: 0, te: false };
+      const mi = f.min_ind, pi = f.pm_ind;
+      if (mi !== undefined && String(mi).trim() !== ''){
+        per[k].min += n(mi); per[k].pm += n(pi); per[k].te = true;
+      }
+    });
+    const out = {};
+    Object.keys(per).forEach(k => {
+      const a = per[k];
+      out[k] = (a.te && a.min > 0) ? a.pm / a.min : null;
+    });
+    return out;
+  }
+
+  /* "C. GENER VILA" -> "GENER", "BERTA NARDI COMAS" -> "BERTA". Agafar sempre
+     la primera paraula donava "C." als noms que comencen amb inicial. */
+  function nomCurtJug(nom){
+    const t = String(nom).trim().split(/\s+/);
+    if (!t.length) return nom;
+    return (t[0].endsWith('.') && t[1]) ? t[1] : t[0];
+  }
+
+  function contribucio(parP, jugP, equip, jugadora, minMin){
+    const propies = mitjanesIndividuals(jugP);
+    const junts = {};
+    parP.forEach(f => {
+      if (f.equip !== equip) return;
+      let altra = null;
+      if (f.jugadora_a === jugadora) altra = f.jugadora_b;
+      else if (f.jugadora_b === jugadora) altra = f.jugadora_a;
+      if (!altra) return;
+      if (!junts[altra]) junts[altra] = { min: 0, pf: 0, pc: 0 };
+      junts[altra].min += n(f.min);
+      junts[altra].pf += n(f.pf);
+      junts[altra].pc += n(f.pc);
+    });
+    return Object.keys(junts).map(c => {
+      const a = junts[c];
+      return {
+        companya: c, minuts: a.min, pf: a.pf, pc: a.pc,
+        pm_min: a.min > 0 ? (a.pf - a.pc) / a.min : 0,
+        propi: propies[equip + '|' + c],
+      };
+    }).filter(x => x.minuts >= minMin).sort((a, b) => b.pm_min - a.pm_min);
+  }
+
   /* La mediana es l'equip del mig, i es exactament el que marca la ratlla de
      la barra al 50. Per aixo es aquesta i no la mitjana aritmetica: si hi
      posessim la mitjana, el numero i la barra es podrien contradir. */
@@ -681,21 +762,93 @@
         nota.innerHTML = '';
         return;
       }
-      fBox.innerHTML =
-        '<select id="f_equip2">' + opcionsEquip + '</select>' +
-        '<label>Mín. minuts <input type="number" id="f_min" value="20" min="0" step="5"></label>';
-      const refresca2 = () => {
-        const eq = document.getElementById('f_equip2').value;
-        const minMin = parseFloat(document.getElementById('f_min').value || '0');
-        let files = agregaParelles(parP, nomsCurts);
-        if (eq) files = files.filter(f => f.equip === eq);
-        files = files.filter(f => f.min >= minMin);
-        pintaTaula(tBox, COLS_PAR, files, 'min');
+      const equipDefecte = equipsLlista.find(e => /MANRESA/i.test(e)) || '';
+      const jugadoresDe = (eq) => [...new Set(
+        jugP.filter(f => !eq || f.equip === eq).map(f => f.jugadora))].sort();
+
+      const pintaFiltres = (eqSel, jugSel, minSel) => {
+        fBox.innerHTML =
+          '<select id="f_equip2">' + opcionsEquip.replace(
+            'value="' + escapa(eqSel) + '"', 'value="' + escapa(eqSel) + '" selected') + '</select>' +
+          '<select id="f_jug2"><option value="">Totes les parelles</option>' +
+          jugadoresDe(eqSel).map(j => '<option value="' + escapa(j) + '"' +
+            (j === jugSel ? ' selected' : '') + '>' + escapa(j) + '</option>').join('') + '</select>' +
+          '<label>Mín. minuts <input type="number" id="f_min" value="' + minSel +
+          '" min="0" step="5"></label>';
       };
-      ['f_equip2','f_min'].forEach(id =>
-        document.getElementById(id).addEventListener('change', refresca2));
+
+      // 20 minuts era massa amb pocs partits: cap parella hi arribava i la
+      // vista sortia buida. Amb 5 es veu alguna cosa des del primer partit.
+      let eqSel = equipDefecte, jugSel = '', minSel = 5;
+
+      const refresca2 = () => {
+        pintaFiltres(eqSel, jugSel, minSel);
+        document.getElementById('f_equip2').addEventListener('change', e => {
+          eqSel = e.target.value; jugSel = ''; refresca2();
+        });
+        document.getElementById('f_jug2').addEventListener('change', e => {
+          jugSel = e.target.value; refresca2();
+        });
+        document.getElementById('f_min').addEventListener('change', e => {
+          minSel = parseFloat(e.target.value || '0'); refresca2();
+        });
+
+        if (!jugSel){
+          let files = agregaParelles(parP, nomsCurts);
+          if (eqSel) files = files.filter(f => f.equip === eqSel);
+          files = files.filter(f => f.min >= minSel);
+          pintaTaula(tBox, COLS_PAR, files, 'min');
+          nota.innerHTML = 'Minuts que han compartit pista i què va passar mentre hi eren totes dues. ' +
+            'Tria una jugadora per veure què aporta a cadascuna de les companyes.';
+          return;
+        }
+
+        const files = contribucio(parP, jugP, eqSel, jugSel, minSel);
+        if (!files.length){
+          tBox.innerHTML = '<div class="estat">' + escapa(jugSel) +
+            ' no arriba a ' + minSel + ' minuts amb cap companya.</div>';
+          nota.innerHTML = '';
+          return;
+        }
+        const senseDiamant = files.filter(f => f.propi === null || f.propi === undefined).length;
+        const valors = [];
+        files.forEach(f => { valors.push(f.pm_min); if (f.propi != null) valors.push(f.propi); });
+        const lim = Math.max(0.2, Math.max.apply(null, valors.map(Math.abs))) * 1.1;
+        const x = (v) => (v + lim) / (2 * lim) * 100;   // -lim..+lim -> 0..100%
+
+        let h = '<div class="co-llegenda">' +
+          '<span><i class="co-mostra"></i>amb ' + escapa(nomCurtJug(jugSel)) + '</span>' +
+          '<span><i class="co-mostra d"></i>mitjana de la companya</span></div>' +
+          '<div class="pc-llista">';
+        files.forEach(f => {
+          const dreta = f.pm_min >= 0;
+          const x0 = Math.min(x(0), x(f.pm_min)), x1 = Math.max(x(0), x(f.pm_min));
+          h += '<div class="co-fila">' +
+            '<div class="co-dalt"><span class="co-nom">' + escapa(f.companya) +
+              '<small>' + f.minuts.toFixed(1) + ' min junts</small></span>' +
+            '<span class="co-val">' + (f.propi == null ? 'ella ·' :
+              'ella ' + (f.propi > 0 ? '+' : '') + f.propi.toFixed(2)) +
+              '<b class="' + (dreta ? 'pos' : 'neg') + '">' +
+              (f.pm_min > 0 ? '+' : '') + f.pm_min.toFixed(2) + '</b></span></div>' +
+            '<div class="co-pista"><div class="co-eix"></div>' +
+            '<div class="co-barra' + (dreta ? '' : ' neg') + '" style="left:' + x0 +
+              '%; width:' + (x1 - x0) + '%"></div>' +
+            '<div class="co-zero" style="left:' + x(0) + '%"></div>' +
+            (f.propi == null ? '' :
+              '<div class="co-diamant" style="left:' + x(f.propi) + '%"></div>') +
+            '</div></div>';
+        });
+        h += '</div>';
+        tBox.innerHTML = h;
+        nota.innerHTML = 'Barra: punts per minut que fa l’equip amb ' + escapa(nomCurtJug(jugSel)) +
+          ' i aquella companya a pista alhora. Diamant: el que fa la companya de mitjana quan juga. ' +
+          'Barra a la dreta del diamant vol dir que, amb ' + escapa(nomCurtJug(jugSel)) +
+          ', aquella companya rendeix per sobre del seu habitual.' +
+          (senseDiamant ? ' <b style="color:var(--mal)">A ' + senseDiamant +
+            ' company' + (senseDiamant > 1 ? 'es' : 'a') + ' hi falta la mitjana pròpia: ' +
+            'els partits es van enviar amb un esquema anterior i cal reenviar-los.</b>' : '');
+      };
       refresca2();
-      nota.innerHTML = 'Minuts que han compartit pista i què va passar mentre hi eren totes dues.';
     }
   }
 
