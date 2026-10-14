@@ -817,10 +817,11 @@
         nota.innerHTML = 'Ordenat de millor a pitjor' +
           (m.alt ? '' : ' (en aquesta, menys és millor)') +
           '. La ratlla vertical és la mediana de la lliga.' +
-          // L'avis llarg de les possessions nomes te sentit si la metrica que
-          // s'esta mirant en depen; si no, es soroll que tapa el grafic.
+          // Nomes l'avis curt: el llistat de partits amb possessions descompassades
+          // ocupava mitja pantalla sota el grafic. A la taula si que hi surt, que
+          // alla es veuen totes les metriques alhora.
           (m.aprox ? ' <b style="color:var(--mal)">Aquesta mètrica depèn de les possessions ' +
-             'i amb dades de la FCBQ és aproximada.</b>' + avisPossessions(eqP) : '');
+             'i amb dades de la FCBQ és aproximada.</b>' : '');
       };
       dibuixaEquips();
     }
