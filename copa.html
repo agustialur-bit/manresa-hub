@@ -289,9 +289,9 @@
   function agregaEquips(equipPartit, nomsCurts){
     const per = {};
     equipPartit.forEach(f => {
-      const k = f.equip;
+      const k = f.equip_id;
       if (!per[k]) per[k] = {
-        equip: k, pj: 0, v: 0, d: 0, e: 0, pts: 0, pts_rival: 0,
+        equip: k, nom_fcbq: f.equip, pj: 0, v: 0, d: 0, e: 0, pts: 0, pts_rival: 0,
         poss: 0, poss_rival: 0, t2c: 0, t2i: 0, t3c: 0, t3i: 0,
         tlc: 0, tli: 0, faltes: 0,
       };
@@ -326,7 +326,7 @@
     // desen (OFF = total de l'equip − ON).
     const totalEquip = {};
     equipPartit.forEach(f => {
-      totalEquip[f.match_id + '|' + f.equip] = {
+      totalEquip[f.match_id + '|' + f.equip_id] = {
         pts: n(f.pts), pts_rival: n(f.pts_rival),
         poss: n(f.poss), poss_rival: n(f.poss_rival),
         tci: n(f.t2i) + n(f.t3i), tli: n(f.tli),
@@ -335,9 +335,9 @@
 
     const per = {};
     jugadoraPartit.forEach(f => {
-      const k = f.equip + '|' + f.jugadora;
+      const k = f.equip_id + '|' + f.jugadora;
       if (!per[k]) per[k] = {
-        jugadora: f.jugadora, equip: f.equip, pj: 0,
+        jugadora: f.jugadora, equip: f.equip_id, pj: 0,
         min: 0, pts: 0, t2c: 0, t2i: 0, t3c: 0, t3i: 0, tlc: 0, tli: 0, faltes: 0,
         on_pts: 0, on_pts_c: 0, on_poss: 0, on_poss_r: 0, on_tci: 0, on_tli: 0,
         off_pts: 0, off_pts_c: 0, off_poss: 0, off_poss_r: 0, off_tci: 0, off_tli: 0,
@@ -349,7 +349,7 @@
       a.on_poss  += n(f.eq_poss_on);      a.on_poss_r += n(f.eq_poss_rival_on);
       a.on_tci   += n(f.eq_tci_on);       a.on_tli    += n(f.eq_tli_on);
 
-      const t = totalEquip[f.match_id + '|' + f.equip];
+      const t = totalEquip[f.match_id + '|' + f.equip_id];
       if (t){
         a.off_pts   += t.pts - n(f.eq_pts_on);
         a.off_pts_c += t.pts_rival - n(f.eq_pts_contra_on);
@@ -395,9 +395,9 @@
   function agregaParelles(parellaPartit, nomsCurts){
     const per = {};
     (parellaPartit || []).forEach(f => {
-      const k = f.equip + '|' + f.jugadora_a + '|' + f.jugadora_b;
+      const k = f.equip_id + '|' + f.jugadora_a + '|' + f.jugadora_b;
       if (!per[k]) per[k] = {
-        equip: f.equip, a: f.jugadora_a, b: f.jugadora_b,
+        equip: f.equip_id, a: f.jugadora_a, b: f.jugadora_b,
         pj: 0, min: 0, pf: 0, pc: 0,
       };
       const x = per[k];
@@ -593,7 +593,7 @@
   function mitjanesIndividuals(jugP){
     const per = {};
     jugP.forEach(f => {
-      const k = f.equip + '|' + f.jugadora;
+      const k = f.equip_id + '|' + f.jugadora;
       if (!per[k]) per[k] = { min: 0, pm: 0, te: false };
       const mi = f.min_ind, pi = f.pm_ind;
       if (mi !== undefined && String(mi).trim() !== ''){
@@ -620,7 +620,7 @@
     const propies = mitjanesIndividuals(jugP);
     const junts = {};
     parP.forEach(f => {
-      if (f.equip !== equip) return;
+      if (f.equip_id !== equip) return;
       let altra = null;
       if (f.jugadora_a === jugadora) altra = f.jugadora_b;
       else if (f.jugadora_b === jugadora) altra = f.jugadora_a;
@@ -699,10 +699,29 @@
 
   function pinta(){
     const box = document.getElementById('contingut');
-    const nomsCurts = {};
+    /* Els noms de la FCBQ porten el patrocinador al davant i canvien entre
+       jornades: el mateix equip pot sortir com a "ODONTOMED JET TERRASSA" i
+       "SERMATEC JET TERRASSA". L'identificador, en canvi, no canvia mai, i per
+       aixo s'agrupa per identificador. Per posar-hi etiqueta s'agafa el nom de
+       la jornada mes recent, que es com se'n diu ara. */
+    const curtPerNom = {};
     aObjectes(DADES.taules.equips).forEach(e => {
-      if (e.nom_fcbq) nomsCurts[e.nom_fcbq] = e.nom_curt || e.nom_fcbq;
+      if (e.nom_fcbq) curtPerNom[e.nom_fcbq] = e.nom_curt || e.nom_fcbq;
     });
+    const ultimNom = {};
+    aObjectes(DADES.taules.equip_partit).forEach(f => {
+      const j = n(f.jornada);
+      if (!ultimNom[f.equip_id] || j >= ultimNom[f.equip_id].j){
+        ultimNom[f.equip_id] = { j: j, nom: f.equip };
+      }
+    });
+    const nomsCurts = {};
+    Object.keys(ultimNom).forEach(id => {
+      const nom = ultimNom[id].nom;
+      nomsCurts[id] = curtPerNom[nom] || nom;
+    });
+    const nomFcbq = {};
+    Object.keys(ultimNom).forEach(id => { nomFcbq[id] = ultimNom[id].nom; });
 
     const eqP = aObjectes(DADES.taules.equip_partit);
     const jugP = aObjectes(DADES.taules.jugadora_partit);
@@ -730,13 +749,14 @@
     const tBox = document.getElementById('taula');
     tBox.className = 'vista-' + VISTA;
     const nota = document.getElementById('nota');
-    const equipsLlista = [...new Set(eqP.map(f => f.equip))].sort();
+    const equipsLlista = [...new Set(eqP.map(f => f.equip_id))]
+      .sort((a, b) => (nomsCurts[a] || a).localeCompare(nomsCurts[b] || b));
     const opcionsEquip = '<option value="">Tots els equips</option>' +
       equipsLlista.map(e => '<option value="' + escapa(e) + '">' + escapa(nomsCurts[e] || e) + '</option>').join('');
 
     if (VISTA === 'equips'){
       const equips = agregaEquips(eqP, nomsCurts);
-      const elMeu = (equips.find(e => /MANRESA/i.test(e.equip)) || {}).equip;
+      const elMeu = (equips.find(e => /MANRESA/i.test(nomFcbq[e.equip] || e.equip)) || {}).equip;
 
       const dibuixaEquips = () => {
         if (MODE_EQ === 'taula'){
@@ -831,7 +851,7 @@
 
     if (VISTA === 'percentils'){
       const equips = agregaEquips(eqP, nomsCurts);
-      const meu = equips.find(e => /MANRESA/i.test(e.equip)) || equips[0];
+      const meu = equips.find(e => /MANRESA/i.test(nomFcbq[e.equip] || e.equip)) || equips[0];
       fBox.innerHTML = '<select id="f_pc">' + equips
         .slice().sort((a, b) => a.nom.localeCompare(b.nom))
         .map(e => '<option value="' + escapa(e.equip) + '"' +
@@ -887,9 +907,9 @@
         nota.innerHTML = '';
         return;
       }
-      const equipDefecte = equipsLlista.find(e => /MANRESA/i.test(e)) || '';
+      const equipDefecte = equipsLlista.find(e => /MANRESA/i.test(nomFcbq[e] || e)) || '';
       const jugadoresDe = (eq) => [...new Set(
-        jugP.filter(f => !eq || f.equip === eq).map(f => f.jugadora))].sort();
+        jugP.filter(f => !eq || f.equip_id === eq).map(f => f.jugadora))].sort();
 
       const pintaFiltres = (eqSel, jugSel, minSel) => {
         fBox.innerHTML =
