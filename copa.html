@@ -123,6 +123,35 @@
   .vista-parelles .jug2{display:block; color:var(--text-dim);}
   .vista-parelles .jug2::before{content:"+ ";}
 
+  /* ---- grafic de barres per equip ----
+     Una barra per equip, ordenades, amb el teu en rosa i la resta en gris.
+     Es la forma d'emfasi: el que importa es on ets tu, no distingir catorze
+     equips per color. */
+  .bg-sel{display:flex; gap:8px; margin-bottom:12px;}
+  .bg-llista{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:12px; padding:14px 14px 12px;
+  }
+  .bg-fila{display:flex; align-items:center; gap:9px; margin-bottom:8px;}
+  .bg-fila:last-child{margin-bottom:0;}
+  .bg-nom{
+    width:88px; flex:0 0 auto; font-size:11px; color:var(--text-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right;
+  }
+  .bg-fila.jo .bg-nom{color:var(--text); font-weight:600;}
+  .bg-pista{flex:1; min-width:0; height:14px; position:relative;}
+  .bg-barra{
+    position:absolute; top:0; height:14px; border-radius:3px;
+    background:var(--line); width:0; transition:width .7s cubic-bezier(.22,.9,.3,1), left .7s;
+  }
+  .bg-fila.jo .bg-barra{background:var(--pink);}
+  .bg-val{
+    width:42px; flex:0 0 auto; font-size:11px; text-align:right;
+    font-variant-numeric:tabular-nums; color:var(--text-dim);
+  }
+  .bg-fila.jo .bg-val{color:var(--text); font-weight:600;}
+  .bg-mediana{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--text-dim); opacity:.5;}
+
   /* ---- percentils ---- */
   .pc-cap{
     background:var(--bg-raised); border:1px solid var(--line); border-radius:12px;
@@ -634,6 +663,38 @@
     return (sota + iguals / 2) / v.length * 100;
   }
 
+  /* Metriques del grafic d'equips. 'alt' diu si mes es millor, per ordenar;
+     'zero' diu si l'escala ha d'arrencar del zero o del minim de la lliga
+     (les diferencies i els nets poden ser negatius i volen el zero al mig). */
+  const METRIQUES_EQ = [
+    { tit: 'Punts a favor',   clau: 'pts',        alt: true,  dec: 0 },
+    { tit: 'Punts en contra', clau: 'pts_rival',  alt: false, dec: 0 },
+    { tit: 'Diferència',      clau: 'dif',        alt: true,  dec: 0, signe: true },
+    { tit: 'TS%',             clau: 'ts',         alt: true,  dec: 1 },
+    { tit: 'eFG%',            clau: 'efg',        alt: true,  dec: 1 },
+    { tit: 'TC%',             clau: 'tc_pct',     alt: true,  dec: 1 },
+    { tit: 'T2%',             clau: 't2_pct',     alt: true,  dec: 1 },
+    { tit: 'T3%',             clau: 't3_pct',     alt: true,  dec: 1 },
+    { tit: 'T1%',             clau: 'tl_pct',     alt: true,  dec: 1 },
+    { tit: 'Off rating',      clau: 'off',        alt: true,  dec: 1, aprox: true },
+    { tit: 'Def rating',      clau: 'def',        alt: false, dec: 1, aprox: true },
+    { tit: 'Net rating',      clau: 'net',        alt: true,  dec: 1, signe: true, aprox: true },
+    { tit: 'Ritme',           clau: 'ritme',      alt: true,  dec: 1, aprox: true },
+  ];
+
+  let MODE_EQ = 'taula', MET_EQ = 'ts';
+
+  const botonsMode = () =>
+    '<div class="bg-sel">' +
+    ['taula', 'grafic'].map(v => '<div class="tab ' + (MODE_EQ === v ? 'actiu' : '') +
+      '" data-m="' + v + '" style="padding:7px 14px; flex:0 0 auto">' +
+      (v === 'taula' ? 'Taula' : 'Gràfic') + '</div>').join('') + '</div>';
+
+  function lligaBotonsMode(redibuixa){
+    document.querySelectorAll('.bg-sel [data-m]').forEach(b =>
+      b.addEventListener('click', () => { MODE_EQ = b.dataset.m; redibuixa(); }));
+  }
+
   let DADES = null, VISTA = 'equips';
 
   function pinta(){
@@ -674,10 +735,74 @@
       equipsLlista.map(e => '<option value="' + escapa(e) + '">' + escapa(nomsCurts[e] || e) + '</option>').join('');
 
     if (VISTA === 'equips'){
-      fBox.innerHTML = '';
-      pintaTaula(tBox, COLS_EQUIP, agregaEquips(eqP, nomsCurts), 'punts_clas');
-      nota.innerHTML = 'Classificació amb ' + PUNTS_VICTORIA + ' punts per victòria i ' +
-        PUNTS_DERROTA + ' per derrota. Toca una capçalera per ordenar.' + avisPossessions(eqP);
+      const equips = agregaEquips(eqP, nomsCurts);
+      const elMeu = (equips.find(e => /MANRESA/i.test(e.equip)) || {}).equip;
+
+      const dibuixaEquips = () => {
+        if (MODE_EQ === 'taula'){
+          fBox.innerHTML = botonsMode();
+          lligaBotonsMode(dibuixaEquips);
+          pintaTaula(tBox, COLS_EQUIP, equips, 'punts_clas');
+          nota.innerHTML = 'Classificació amb ' + PUNTS_VICTORIA + ' punts per victòria i ' +
+            PUNTS_DERROTA + ' per derrota. Toca una capçalera per ordenar.' + avisPossessions(eqP);
+          return;
+        }
+
+        fBox.innerHTML = botonsMode() +
+          '<select id="f_met">' + METRIQUES_EQ.map(m =>
+            '<option value="' + m.clau + '"' + (m.clau === MET_EQ ? ' selected' : '') + '>' +
+            escapa(m.tit) + '</option>').join('') + '</select>';
+        lligaBotonsMode(dibuixaEquips);
+        document.getElementById('f_met').addEventListener('change', e => {
+          MET_EQ = e.target.value; dibuixaEquips();
+        });
+
+        const m = METRIQUES_EQ.find(x => x.clau === MET_EQ) || METRIQUES_EQ[0];
+        const files = equips.filter(e => e[m.clau] !== null && !isNaN(e[m.clau]))
+                            .sort((a, b) => m.alt ? b[m.clau] - a[m.clau] : a[m.clau] - b[m.clau]);
+        if (!files.length){ tBox.innerHTML = '<div class="estat">Sense dades.</div>'; return; }
+
+        const vals = files.map(e => e[m.clau]);
+        const med = mediana(vals);
+        // Amb valors negatius l'escala ha d'incloure el zero; si no, arrenca una
+        // mica per sota del minim perque les barres no surtin totes plenes.
+        const mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+        const baix = m.signe ? Math.min(mn, 0) : (mn > 0 ? mn - (mx - mn) * 0.25 - 0.01 : mn);
+        const dalt = m.signe ? Math.max(mx, 0) : mx;
+        const x = (v) => (dalt === baix) ? 50 : (v - baix) / (dalt - baix) * 100;
+
+        let h = '<div class="bg-llista">';
+        files.forEach(e => {
+          const v = e[m.clau];
+          const jo = e.equip === elMeu;
+          const x0 = Math.min(x(0), x(v)), x1 = Math.max(x(0), x(v));
+          const esq = m.signe ? x0 : 0, amp = m.signe ? (x1 - x0) : x(v);
+          h += '<div class="bg-fila' + (jo ? ' jo' : '') + '">' +
+            '<span class="bg-nom">' + escapa(e.nom) + '</span>' +
+            '<span class="bg-pista"><span class="bg-barra" data-l="' + esq +
+              '" data-w="' + amp + '"></span>' +
+            (med === null ? '' : '<span class="bg-mediana" style="left:' + x(med) + '%"></span>') +
+            '</span>' +
+            '<span class="bg-val">' + (m.signe && v > 0 ? '+' : '') + v.toFixed(m.dec) + '</span>' +
+            '</div>';
+        });
+        h += '</div>';
+        tBox.innerHTML = h;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          tBox.querySelectorAll('.bg-barra').forEach(el => {
+            el.style.left = el.dataset.l + '%'; el.style.width = el.dataset.w + '%';
+          });
+        }));
+
+        nota.innerHTML = 'Ordenat de millor a pitjor' +
+          (m.alt ? '' : ' (en aquesta, menys és millor)') +
+          '. La ratlla vertical és la mediana de la lliga.' +
+          // L'avis llarg de les possessions nomes te sentit si la metrica que
+          // s'esta mirant en depen; si no, es soroll que tapa el grafic.
+          (m.aprox ? ' <b style="color:var(--mal)">Aquesta mètrica depèn de les possessions ' +
+             'i amb dades de la FCBQ és aproximada.</b>' + avisPossessions(eqP) : '');
+      };
+      dibuixaEquips();
     }
 
     if (VISTA === 'jugadores'){
