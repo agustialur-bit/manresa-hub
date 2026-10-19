@@ -1,6 +1,6 @@
 /* Puja el número de VERSIO cada cop que publiquis canvis: això fa que els
    mòbils esborrin la còpia antiga i es quedin només amb la nova. */
-const VERSIO = 'v10';
+const VERSIO = 'v11';
 const CACHE = 'manresa-hub-' + VERSIO;
 
 // Fitxers que gairebé no canvien: es serveixen de la còpia local.
