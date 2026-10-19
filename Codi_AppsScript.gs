@@ -11,6 +11,11 @@
  * 5) Pestanya "VideosRivals" — mateixes columnes que "Videos", però amb
  *    vídeos de YouTube d'equips CONTRARIS
  *
+ * 6) Els INFORMES no van per pestanya: l'script llegeix directament la carpeta
+ *    del Drive de CARPETA_INFORMES. Deixa-hi un document i ja surt a l'app.
+ *    La primera vegada que es desplega amb aquest codi, Google demana permís
+ *    per llegir el Drive: cal acceptar-lo.
+ *
  * DESPLEGAMENT:
  * Desplegament -> Gestiona desplegaments -> llapis (editar) -> Nova versió -> Desplega
  * (si ja tens l'aplicació web desplegada, no cal tornar a canviar la URL /exec)
@@ -36,6 +41,32 @@ function readVideos_(sheet) {
   return videos;
 }
 
+// Carpeta del Drive amb els informes de l'equip. Es llegeix tal qual: el nom
+// del fitxer es el titol i la data es la de l'ultima modificacio. Aixi no cal
+// mantenir cap llista enlloc.
+var CARPETA_INFORMES = '1RqXjT3HAUlVuvjX2h-kOLUC90cB0Lxmk';
+
+function readCarpeta_(idCarpeta) {
+  var out = [];
+  if (!idCarpeta) return out;
+  try {
+    var fitxers = DriveApp.getFolderById(idCarpeta).getFiles();
+    while (fitxers.hasNext()) {
+      var f = fitxers.next();
+      out.push({
+        data: formatData_(f.getLastUpdated()),
+        // Fora l'extensio: a l'app ja es veu que es un document
+        titol: f.getName().replace(/\.[A-Za-z0-9]{1,5}$/, ''),
+        url: f.getUrl()
+      });
+    }
+  } catch (err) {
+    return [];   // carpeta inexistent o sense permis: millor buit que petar
+  }
+  out.sort(function (a, b) { return a.data < b.data ? 1 : (a.data > b.data ? -1 : 0); });
+  return out;
+}
+
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var regSheet = ss.getSheetByName('Registres');
@@ -43,6 +74,7 @@ function doGet(e) {
   var fbSheet = ss.getSheetByName('Feedback');
   var vidSheet = ss.getSheetByName('Videos');
   var vidRivalsSheet = ss.getSheetByName('VideosRivals');
+  var imgSheet = ss.getSheetByName('Imatges');
 
   var registres = [];
   if (regSheet) {
@@ -80,11 +112,17 @@ function doGet(e) {
 
   var videos = readVideos_(vidSheet);
   var videosRivals = readVideos_(vidRivalsSheet);
+  // Mateix format que els videos: Data | Titol | URL. Si la pestanya no
+  // existeix, readVideos_ retorna una llista buida i no passa res.
+  var imatges = readVideos_(imgSheet);
+  var informes = readCarpeta_(CARPETA_INFORMES);
 
   return ContentService
     .createTextOutput(JSON.stringify({
       registres: registres, conceptes: conceptes, feedback: feedback,
-      videos: videos, videosRivals: videosRivals
+      videos: videos, videosRivals: videosRivals,
+      imatges: imatges,
+      informes: informes
     }))
     .setMimeType(ContentService.MimeType.JSON);
 }

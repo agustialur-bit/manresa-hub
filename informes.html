@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Altres informes · Manresa</title>
+<meta name="theme-color" content="#11141a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#11141a; --bg-raised:#181c24; --bg-raised-2:#1e2330;
+    --line:#2a2f3a; --pink:#ff2d78;
+    --text:#f2f1ee; --text-dim:#8b93a3;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{color-scheme:dark;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh; min-height:100dvh;
+    padding: max(20px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+  }
+  .wrap{width:100%; max-width:560px; margin:0 auto;}
+
+  .topbar{display:flex; align-items:center; gap:12px; margin-bottom:20px;}
+  .back-btn{
+    width:38px; height:38px; border-radius:10px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text); display:flex; align-items:center; justify-content:center;
+    text-decoration:none; flex:0 0 auto;
+  }
+  .topbar h1{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:22px;
+    text-transform:uppercase; letter-spacing:.01em; margin:0;
+  }
+
+  .llista{display:grid; gap:10px;}
+  a.informe{
+    display:flex; align-items:center; gap:14px; padding:16px 16px;
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:14px;
+    text-decoration:none; color:var(--text); position:relative; overflow:hidden;
+  }
+  a.informe::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--pink);}
+  a.informe:active{background:var(--bg-raised-2);}
+  .ico{
+    flex:0 0 auto; width:38px; height:38px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,45,120,.08); color:var(--pink);
+  }
+  .ico svg{width:19px; height:19px;}
+  /* display:block als dos: son <span> i, sense aixo, titol i data surten
+     enganxats a la mateixa linia. */
+  .cos{flex:1; min-width:0;}
+  .titol{
+    display:block; font-size:14px; line-height:1.3; margin-bottom:3px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .data{display:block; font-size:11.5px; color:var(--text-dim);}
+  .fletxa{flex:0 0 auto; color:var(--text-dim); font-size:18px;}
+
+  .estat{text-align:center; color:var(--text-dim); font-size:13px; padding:40px 14px; line-height:1.6;}
+  .nota{font-size:11px; color:var(--text-dim); text-align:center; margin-top:18px; line-height:1.5;}
+  .refresca{
+    display:block; margin:16px auto 0; background:var(--bg-raised);
+    border:1px solid var(--line); color:var(--text-dim);
+    font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:.1em;
+    text-transform:uppercase; padding:9px 16px; border-radius:9px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a href="index.html" class="back-btn" aria-label="Enrere">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <h1>Altres informes</h1>
+  </div>
+  <div id="contingut"><div class="estat">Carregant…</div></div>
+</div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbxhyiqFm5fV2TWiSgBb-keqqes7jmYDqIr40mSWb8uxuHU-jN8MTH0t7XHeRVe-Yg/exec";
+  // Si l'Apps Script encara no llegeix la carpeta, s'hi va per aquí.
+  const CARPETA = "https://drive.google.com/drive/folders/1RqXjT3HAUlVuvjX2h-kOLUC90cB0Lxmk?usp=drive_link";
+
+  /* El web app d'Apps Script respon 404 de tant en tant; reintentem amb una
+     espera creixent. Aquí només llegim. */
+  const ESPERES = [1200, 3500];
+  const TEMPS_MAX = 10000;
+  const dorm = (ms) => new Promise((r) => setTimeout(r, ms));
+  const escapa = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  async function llegeix(intents = 3){
+    let ultim;
+    for (let i = 0; i < intents; i++){
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), TEMPS_MAX);
+      try{
+        const res = await fetch(API_URL, { cache: 'no-store', signal: ctrl.signal });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      } catch(err){
+        ultim = err;
+        if (i < intents - 1) await dorm(ESPERES[Math.min(i, ESPERES.length - 1)]);
+      } finally { clearTimeout(id); }
+    }
+    throw ultim;
+  }
+
+  function dataBonica(iso){
+    if (!iso) return '';
+    const t = String(iso).slice(0, 10).split('-');
+    return t.length === 3 ? t[2] + '/' + t[1] + '/' + t[0] : String(iso);
+  }
+
+  const ICONA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>' +
+    '<path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>';
+
+  function pinta(informes){
+    const box = document.getElementById('contingut');
+    if (!informes.length){
+      box.innerHTML = '<div class="estat">Encara no hi ha cap informe.<br>' +
+        'Deixa un document a la carpeta del Drive i apareixerà aquí.' +
+        '<br><br><a href="' + CARPETA + '" target="_blank" rel="noopener" ' +
+        'style="color:var(--pink)">Obrir la carpeta</a></div>';
+      return;
+    }
+    let h = '<div class="llista">';
+    informes.forEach(x => {
+      h += '<a class="informe" href="' + escapa(x.url) + '" target="_blank" rel="noopener">' +
+        '<span class="ico">' + ICONA + '</span>' +
+        '<span class="cos"><span class="titol">' + escapa(x.titol || 'Informe') + '</span>' +
+        '<span class="data">' + escapa(dataBonica(x.data)) + '</span></span>' +
+        '<span class="fletxa">›</span></a>';
+    });
+    h += '</div>';
+    h += '<div class="nota">S\'actualitza sol: el que hi hagi a la carpeta del Drive surt aquí.</div>';
+    h += '<button class="refresca" id="refresca">Actualitzar</button>';
+    box.innerHTML = h;
+    document.getElementById('refresca').addEventListener('click', carrega);
+  }
+
+  async function carrega(){
+    const box = document.getElementById('contingut');
+    box.innerHTML = '<div class="estat">Carregant…</div>';
+    try{
+      const d = await llegeix();
+      if (!('informes' in d)){
+        // L'Apps Script encara no s'ha redesplegat amb el lector de carpeta.
+        box.innerHTML = '<div class="estat">Falta desplegar la versió nova de l\'Apps Script ' +
+          'perquè llegeixi la carpeta dels informes.<br><br>' +
+          '<a href="' + CARPETA + '" target="_blank" rel="noopener" ' +
+          'style="color:var(--pink)">Obrir la carpeta del Drive</a></div>';
+        return;
+      }
+      pinta((d.informes || []).slice().sort((a, b) => String(b.data).localeCompare(String(a.data))));
+    } catch(err){
+      box.innerHTML = '<div class="estat">No s\'han pogut carregar els informes.<br>' +
+        'Torna-ho a provar d\'aquí un moment.' +
+        '<button class="refresca" onclick="carrega()">Tornar a provar</button></div>';
+    }
+  }
+
+  carrega();
+</script>
+</body>
+</html>
