@@ -65,7 +65,6 @@
   .fletxa{flex:0 0 auto; color:var(--text-dim); font-size:18px;}
 
   .estat{text-align:center; color:var(--text-dim); font-size:13px; padding:40px 14px; line-height:1.6;}
-  .nota{font-size:11px; color:var(--text-dim); text-align:center; margin-top:18px; line-height:1.5;}
   .refresca{
     display:block; margin:16px auto 0; background:var(--bg-raised);
     border:1px solid var(--line); color:var(--text-dim);
@@ -142,7 +141,6 @@
         '<span class="fletxa">›</span></a>';
     });
     h += '</div>';
-    h += '<div class="nota">S\'actualitza sol: el que hi hagi a la carpeta del Drive surt aquí.</div>';
     h += '<button class="refresca" id="refresca">Actualitzar</button>';
     box.innerHTML = h;
     document.getElementById('refresca').addEventListener('click', carrega);
