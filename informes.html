@@ -161,6 +161,13 @@
           'style="color:var(--pink)">Obrir la carpeta del Drive</a></div>';
         return;
       }
+      if (d.informes_error){
+        box.innerHTML = '<div class="estat">L'Apps Script no ha pogut llegir la carpeta:<br>' +
+          '<b>' + escapa(d.informes_error) + '</b><br><br>' +
+          'Normalment és que falta autoritzar-lo: obre l'editor d'Apps Script, ' +
+          'executa-hi <b>provaInformes</b> i accepta el permís de Drive.</div>';
+        return;
+      }
       pinta((d.informes || []).slice().sort((a, b) => String(b.data).localeCompare(String(a.data))));
     } catch(err){
       box.innerHTML = '<div class="estat">No s\'han pogut carregar els informes.<br>' +

@@ -45,6 +45,7 @@ function readVideos_(sheet) {
 // del fitxer es el titol i la data es la de l'ultima modificacio. Aixi no cal
 // mantenir cap llista enlloc.
 var CARPETA_INFORMES = '1RqXjT3HAUlVuvjX2h-kOLUC90cB0Lxmk';
+var ULTIM_ERROR_CARPETA = '';
 
 function readCarpeta_(idCarpeta) {
   var out = [];
@@ -61,7 +62,10 @@ function readCarpeta_(idCarpeta) {
       });
     }
   } catch (err) {
-    return [];   // carpeta inexistent o sense permis: millor buit que petar
+    // No ens l'empassem en silenci: una llista buida per falta de permis i una
+    // carpeta realment buida es veuen igual, i aixo costa d'endevinar.
+    ULTIM_ERROR_CARPETA = String(err && err.message || err);
+    return [];
   }
   out.sort(function (a, b) { return a.data < b.data ? 1 : (a.data > b.data ? -1 : 0); });
   return out;
@@ -122,7 +126,8 @@ function doGet(e) {
       registres: registres, conceptes: conceptes, feedback: feedback,
       videos: videos, videosRivals: videosRivals,
       imatges: imatges,
-      informes: informes
+      informes: informes,
+      informes_error: ULTIM_ERROR_CARPETA
     }))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -148,4 +153,17 @@ function doPost(e) {
   return ContentService
     .createTextOutput(JSON.stringify({ ok: true }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+/**
+ * Prova dels informes. Executa-la des de l'editor (botó "Executa") i mira el
+ * registre: la PRIMERA vegada Google demanarà permís per llegir el Drive, que
+ * és el que necessita readCarpeta_(). Desplegar sol no demana res.
+ */
+function provaInformes() {
+  var r = readCarpeta_(CARPETA_INFORMES);
+  Logger.log('Informes trobats: ' + r.length);
+  if (ULTIM_ERROR_CARPETA) Logger.log('ERROR: ' + ULTIM_ERROR_CARPETA);
+  r.forEach(function (x) { Logger.log(x.data + '  ' + x.titol); });
 }
