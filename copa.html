@@ -1153,6 +1153,11 @@
           nota.innerHTML = '';
           return;
         }
+        // Mateix problema que a Quintets: amb dues Janes i dues Laies, "amb JANA"
+        // no diu quina. A les files del grafic hi va el nom sencer i no cal.
+        const etP = etiquetesJugadores(jugadoresDe(eqSel));
+        const nomJug = (j) => etP[j] || nomCurtJug(j);
+
         const senseDiamant = files.filter(f => f.propi === null || f.propi === undefined).length;
         const valors = [];
         files.forEach(f => { valors.push(f.pm_min); if (f.propi != null) valors.push(f.propi); });
@@ -1160,7 +1165,7 @@
         const x = (v) => (v + lim) / (2 * lim) * 100;   // -lim..+lim -> 0..100%
 
         let h = '<div class="co-llegenda">' +
-          '<span><i class="co-mostra"></i>amb ' + escapa(nomCurtJug(jugSel)) + '</span>' +
+          '<span><i class="co-mostra"></i>amb ' + escapa(nomJug(jugSel)) + '</span>' +
           '<span><i class="co-mostra d"></i>mitjana de la companya</span></div>' +
           '<div class="pc-llista">';
         files.forEach(f => {
@@ -1183,9 +1188,9 @@
         });
         h += '</div>';
         tBox.innerHTML = h;
-        nota.innerHTML = 'Barra: punts per minut que fa l’equip amb ' + escapa(nomCurtJug(jugSel)) +
+        nota.innerHTML = 'Barra: punts per minut que fa l’equip amb ' + escapa(nomJug(jugSel)) +
           ' i aquella companya a pista alhora. Diamant: el que fa la companya de mitjana quan juga. ' +
-          'Barra a la dreta del diamant vol dir que, amb ' + escapa(nomCurtJug(jugSel)) +
+          'Barra a la dreta del diamant vol dir que, amb ' + escapa(nomJug(jugSel)) +
           ', aquella companya rendeix per sobre del seu habitual.' +
           (senseDiamant ? ' <b style="color:var(--mal)">A ' + senseDiamant +
             ' company' + (senseDiamant > 1 ? 'es' : 'a') + ' hi falta la mitjana pròpia: ' +
