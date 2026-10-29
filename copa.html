@@ -123,6 +123,51 @@
   .vista-parelles .jug2{display:block; color:var(--text-dim);}
   .vista-parelles .jug2::before{content:"+ ";}
 
+  /* Els quintets son cinc noms: mateix problema que les parelles, i prou
+     ample perque no quedi un nom sol per linia. */
+  .vista-quintets td:first-child, .vista-quintets th:first-child{
+    white-space:normal; max-width:none; min-width:190px; line-height:1.35;
+  }
+
+  /* ---- quintets: tria de jugadores ---- */
+  .qui-tria{flex:1 1 100%; display:flex; flex-wrap:wrap; gap:6px;}
+  /* El gruix de la lletra no canvia en triar-la: si la casella triada es
+     feia negreta, s'eixamplava i desplacava totes les de la dreta, i al mobil
+     el nom que volies tocar despres ja no hi era. El color ja distingeix. */
+  .qui-chip{
+    background:var(--bg-raised); border:1px solid var(--line); color:var(--text);
+    border-radius:8px; padding:7px 11px; font-size:12px; font-weight:500;
+    font-family:'Inter',sans-serif; cursor:pointer;
+  }
+  .qui-chip.tria{background:var(--pink); border-color:var(--pink); color:#11141a;}
+  /* Amb cinc ja triades, les altres es veuen apagades: aixi es veu que el
+     quintet esta ple sense haver de desactivar-les (desactivades, tocar-les
+     no diria res i semblaria que l'app no respon). */
+  .qui-chip.ple{opacity:.4;}
+  .qui-compte{
+    flex:1 1 100%; display:flex; align-items:center; gap:10px;
+    font-size:11px; color:var(--text-dim);
+  }
+  .qui-neteja{
+    background:none; border:1px solid var(--line); color:var(--text-dim);
+    border-radius:7px; padding:4px 9px; cursor:pointer;
+    font-family:'Oswald',sans-serif; font-size:10px;
+    letter-spacing:.08em; text-transform:uppercase;
+  }
+  /* Fitxa del quintet complet: el +/- acumulat, gros, i la resta al costat. */
+  .qui-fitxa{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:12px; padding:16px;
+  }
+  .qui-cinc{font-size:12.5px; line-height:1.55; margin-bottom:14px;}
+  .qui-cinc b{font-weight:600;}
+  .qui-gran{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  .qui-pm{font-family:'Oswald',sans-serif; font-size:42px; line-height:.9;}
+  .qui-pm.pos{color:var(--ok);}
+  .qui-pm.neg{color:var(--mal);}
+  .qui-detall{font-size:11.5px; color:var(--text-dim); line-height:1.7;}
+  .qui-detall b{color:var(--text); font-variant-numeric:tabular-nums;}
+
   /* ---- grafic de barres per equip ----
      Una barra per equip, ordenades, amb el teu en rosa i la resta en gris.
      Es la forma d'emfasi: el que importa es on ets tu, no distingir catorze
@@ -411,6 +456,31 @@
     }));
   }
 
+  /* Quintets. Les columnes j1..j5 arriben ja ordenades alfabeticament des de
+     Micki, o sigui que el mateix quintet dona sempre la mateixa clau i la
+     temporada se suma sense duplicats. Si algun dia arribessin desordenades,
+     aqui es tornarien a ordenar i no passaria res. */
+  const CLAUS5 = ['j1', 'j2', 'j3', 'j4', 'j5'];
+
+  function agregaQuintets(quintetPartit, equipId, etiq){
+    const per = {};
+    (quintetPartit || []).forEach(f => {
+      if (equipId && f.equip_id !== equipId) return;
+      const cinc = CLAUS5.map(c => f[c]).filter(x => x !== '' && x !== null && x !== undefined);
+      if (cinc.length !== 5) return;
+      cinc.sort();
+      const k = cinc.join('|');
+      if (!per[k]) per[k] = { cinc: cinc, clau: k, pj: 0, min: 0, pf: 0, pc: 0 };
+      const x = per[k];
+      x.pj++; x.min += n(f.min); x.pf += n(f.pf); x.pc += n(f.pc);
+    });
+    return Object.values(per).map(x => Object.assign(x, {
+      nom: x.cinc.map(j => (etiq && etiq[j]) || nomCurtJug(j)).join(' · '),
+      pm: x.pf - x.pc,
+      pm_min: x.min > 0 ? (x.pf - x.pc) / x.min : 0,
+    }));
+  }
+
   // ── Taula ───────────────────────────────────────────────────────────────
   const f1 = (v) => v === null || v === undefined || isNaN(v) ? '·' : v.toFixed(1);
   const f0 = (v) => v === null || v === undefined || isNaN(v) ? '·' : Math.round(v);
@@ -532,6 +602,16 @@
     { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
   ];
 
+  const COLS_QUI = [
+    { tit: 'Quintet', clau: 'nom', val: f => escapa(f.nom) },
+    { tit: 'Part.', clau: 'pj', val: f => f.pj, ajuda: 'Partits en què han coincidit' },
+    { tit: 'Min', clau: 'min', val: f => f1(f.min) },
+    { tit: 'PF', clau: 'pf', val: f => f.pf, ajuda: 'Punts fets mentre hi eren' },
+    { tit: 'PC', clau: 'pc', val: f => f.pc, ajuda: 'Punts rebuts mentre hi eren' },
+    { tit: '+/-', clau: 'pm', val: f => fSig(f.pm), classe: f => classeSigne(f.pm) },
+    { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
+  ];
+
   /* Les possessions s'estimen com a tirs de camp + 0,44 x tirs lliures. La
      formula de debo tambe restaria els rebots ofensius i sumaria les perdues,
      pero el play-by-play de la FCBQ NO els publica: nomes dona cistelles,
@@ -616,6 +696,36 @@
     return (t[0].endsWith('.') && t[1]) ? t[1] : t[0];
   }
 
+  /* Hi ha dues Janes i dues Laies: el nom de pila sol no les distingeix, i a
+     la tria de quintets sortien dues caselles iguals. A les que es repeteixen
+     se'ls hi afegeix la inicial del cognom, i si la inicial tambe coincideix,
+     el cognom sencer. A les que no es repeteixen no se'ls toca res. */
+  function etiquetesJugadores(noms){
+    const cognomDe = (nom) => {
+      const t = String(nom).trim().split(/\s+/);
+      const i = t.indexOf(nomCurtJug(nom));
+      return t[i + 1] || '';
+    };
+    const per = {};
+    (noms || []).forEach(nom => {
+      const c = nomCurtJug(nom);
+      (per[c] = per[c] || []).push(nom);
+    });
+    const out = {};
+    Object.keys(per).forEach(c => {
+      const grup = per[c];
+      if (grup.length === 1){ out[grup[0]] = c; return; }
+      const cognoms = grup.map(cognomDe);
+      const inicials = cognoms.map(x => x.slice(0, 1));
+      const prouInicial = new Set(inicials).size === inicials.length;
+      grup.forEach((nom, k) => {
+        const afegit = prouInicial ? (inicials[k] ? inicials[k] + '.' : '') : cognoms[k];
+        out[nom] = (c + ' ' + afegit).trim();
+      });
+    });
+    return out;
+  }
+
   function contribucio(parP, jugP, equip, jugadora, minMin){
     const propies = mitjanesIndividuals(jugP);
     const junts = {};
@@ -696,6 +806,8 @@
   }
 
   let DADES = null, VISTA = 'equips';
+  // Es guarda fora de pinta() per no perdre la tria en canviar de pestanya.
+  let QUINTET_TRIAT = [];
 
   function pinta(){
     const box = document.getElementById('contingut');
@@ -734,7 +846,8 @@
     }
 
     let h = '<div class="tabs">' +
-      [['equips','Equips'],['jugadores','Jugadores'],['parelles','Parelles'],['percentils','Percentils']]
+      [['equips','Equips'],['jugadores','Jugadores'],['parelles','Parelles'],
+       ['quintets','Quintets'],['percentils','Percentils']]
         .map(v => '<div class="tab ' + (VISTA === v[0] ? 'actiu' : '') + '" data-v="' + v[0] + '">' +
                   v[1] + '</div>')
         .join('') + '</div><div id="filtres" class="filtres"></div><div id="taula"></div>' +
@@ -894,6 +1007,93 @@
       dibuixa();
       nota.innerHTML = 'Només hi surten mètriques que no depenen de les possessions: ' +
         'Off, Def, Net i Ritme en depenen i amb dades de la FCBQ són aproximades.';
+      return;
+    }
+
+    if (VISTA === 'quintets'){
+      /* Nomes el Manresa: a la base hi ha els quintets dels dos equips de cada
+         partit, pero aquesta pantalla es per decidir rotacions propies. */
+      const meu = equipsLlista.find(e => /MANRESA/i.test(nomFcbq[e] || e)) || equipsLlista[0];
+      const plantilla = [...new Set(jugP.filter(f => f.equip_id === meu).map(f => f.jugadora))].sort();
+      const etiq = etiquetesJugadores(plantilla);
+      const et = (j) => etiq[j] || nomCurtJug(j);
+      const totsQ = agregaQuintets(aObjectes(DADES.taules.quintet_partit), meu, etiq);
+
+      if (!totsQ.length){
+        fBox.innerHTML = '';
+        tBox.innerHTML = `<div class="estat">Encara no hi ha dades de quintets.<br>` +
+          `Arriben amb els partits enviats amb l'esquema v4 o posterior: ` +
+          `torna a enviar-los des de Micki.</div>`;
+        nota.innerHTML = '';
+        return;
+      }
+
+      const sig0 = (v) => (v > 0 ? '+' : '') + Math.round(v);
+
+      const fitxa = (q) => '<div class="qui-fitxa">' +
+        '<div class="qui-cinc">' +
+          q.cinc.map(j => '<b>' + escapa(et(j)) + '</b>').join(' · ') + '</div>' +
+        '<div class="qui-gran">' +
+          '<div class="qui-pm ' + classeSigne(q.pm) + '">' + sig0(q.pm) + '</div>' +
+          '<div class="qui-detall">' +
+            '<b>' + f1(q.min) + '</b> minuts junts en <b>' + q.pj + '</b> partit' +
+              (q.pj === 1 ? '' : 's') + '<br>' +
+            '<b>' + q.pf + '</b> punts fets i <b>' + q.pc + '</b> rebuts<br>' +
+            '<b>' + fSig(q.pm_min) + '</b> per minut' +
+          '</div>' +
+        '</div></div>';
+
+      const refrescaQ = () => {
+        const ple = QUINTET_TRIAT.length >= 5;
+        fBox.innerHTML = '<div class="qui-tria">' +
+          plantilla.map(j => {
+            const tria = QUINTET_TRIAT.indexOf(j) >= 0;
+            return '<button class="qui-chip' + (tria ? ' tria' : (ple ? ' ple' : '')) +
+              '" data-j="' + escapa(j) + '">' + escapa(et(j)) + '</button>';
+          }).join('') + '</div>' +
+          '<div class="qui-compte"><span>' + QUINTET_TRIAT.length + ' de 5 triades</span>' +
+          (QUINTET_TRIAT.length
+            ? '<button class="qui-neteja" id="qui_neteja">Esborra</button>' : '') +
+          '</div>';
+
+        fBox.querySelectorAll('.qui-chip').forEach(b => b.addEventListener('click', () => {
+          const j = b.dataset.j;
+          const i = QUINTET_TRIAT.indexOf(j);
+          if (i >= 0) QUINTET_TRIAT.splice(i, 1);
+          else if (QUINTET_TRIAT.length < 5) QUINTET_TRIAT.push(j);
+          else return;                     // ja n'hi ha cinc: cal treure'n una
+          refrescaQ();
+        }));
+        const net = document.getElementById('qui_neteja');
+        if (net) net.addEventListener('click', () => { QUINTET_TRIAT = []; refrescaQ(); });
+
+        if (QUINTET_TRIAT.length === 5){
+          const q = totsQ.find(x => x.clau === QUINTET_TRIAT.slice().sort().join('|'));
+          if (!q){
+            tBox.innerHTML = '<div class="estat">Aquestes cinc <b>no han coincidit mai</b> a pista ' +
+              `als partits que hi ha a la base.<br>Treu-ne una i veuràs amb quines sí.</div>`;
+            nota.innerHTML = '';
+            return;
+          }
+          tBox.innerHTML = fitxa(q);
+          nota.innerHTML = `El +/- són els punts fets menys els rebuts mentre les cinc ` +
+            `eren a pista alhora. Mira-hi els minuts: amb pocs, un número gros no vol dir gaire.`;
+          return;
+        }
+
+        let files = totsQ;
+        if (QUINTET_TRIAT.length){
+          files = files.filter(x => QUINTET_TRIAT.every(j => x.cinc.indexOf(j) >= 0));
+        }
+        pintaTaula(tBox, COLS_QUI, files, 'min');
+        nota.innerHTML = QUINTET_TRIAT.length
+          ? 'Els ' + files.length + ' quintets que inclouen les ' + QUINTET_TRIAT.length +
+            ' triades, de més a menys minuts. Marca fins a cinc per veure la fitxa del quintet.'
+          : `Tots els quintets que ha fet servir l'equip, de més a menys minuts. Marca ` +
+            `jugadores per filtrar. Aquests números són exactes: només surten dels canvis ` +
+            `i dels punts, sense estimar res.`;
+      };
+      refrescaQ();
       return;
     }
 

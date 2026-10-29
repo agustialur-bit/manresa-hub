@@ -17,13 +17,13 @@
  * Resposta:
  *   { generat, taules: { partits: {cols, rows}, equip_partit: {...},
  *                         jugadora_partit: {...}, parella_partit: {...},
- *                         equips: {...} } }
+ *                         quintet_partit: {...}, equips: {...} } }
  * Format cols/rows (en lloc d'objectes) per reduir la mida del JSON.
  */
 
 const TOKEN = 'CANVIA-AQUEST-TOKEN';
 const PESTANYES = ['partits', 'equip_partit', 'jugadora_partit',
-                   'parella_partit', 'equips'];
+                   'parella_partit', 'quintet_partit', 'equips'];
 const ZONA = 'Europe/Madrid';
 
 function doGet(e) {
