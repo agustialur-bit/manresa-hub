@@ -87,6 +87,29 @@
     background:var(--bg-raised); border:1px solid var(--line);
     border-radius:12px; overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
+
+  /* Al mobil la taula no hi cap, i les columnes de la dreta no deixaven cap
+     pista que hi fossin: calia endevinar que s'havia de desplacar. El marc
+     encen un degradat al costat dret mentre quedi taula per veure, i una
+     linia de text a sobre que avisa que hi ha mes columnes. */
+  /* El degradat va en una capa propia que nomes embolcalla la taula: si anes
+     al marc, la linia de la pista li faria baixar la vora de dalt. */
+  .taula-vista{position:relative;}
+  .taula-vista::after{
+    content:""; position:absolute; top:1px; right:1px; bottom:1px; width:44px;
+    pointer-events:none; opacity:0; transition:opacity .15s;
+    border-radius:0 11px 11px 0;
+    background:linear-gradient(to left, var(--bg) 10%, rgba(17,20,26,.72) 55%,
+                               rgba(17,20,26,0));
+  }
+  .taula-marc.mes-dreta .taula-vista::after{opacity:1;}
+  /* La pista va sobre la taula, no sota: les taules fan moltes pantalles
+     d'alcada i al peu no la veuria ningu. */
+  .taula-pista{
+    display:none; padding:0 2px 6px; text-align:right;
+    font-size:11px; color:var(--pink); font-weight:500;
+  }
+  .taula-marc.mostra-pista .taula-pista{display:block;}
   table{border-collapse:separate; border-spacing:0; width:100%; font-size:12px;}
   th, td{padding:8px 9px; white-space:nowrap; font-variant-numeric:tabular-nums;}
   th{
@@ -122,6 +145,17 @@
   }
   .vista-parelles .jug2{display:block; color:var(--text-dim);}
   .vista-parelles .jug2::before{content:"+ ";}
+
+  /* Al mobil, amb la columna Equip fora, les parelles hi caben gairebe
+     senceres. Estrenyent una mica el nom i els marges interiors, els cinc
+     numeros que es miren primer entren a la pantalla i nomes queden PF i PC
+     per desplacar. */
+  @media (max-width: 430px){
+    .vista-parelles td:first-child, .vista-parelles th:first-child{min-width:140px;}
+    .vista-parelles th:not(:first-child), .vista-parelles td:not(:first-child){
+      padding-left:6px; padding-right:6px;
+    }
+  }
 
   /* Els quintets son cinc noms: mateix problema que les parelles, i prou
      ample perque no quedi un nom sol per linia. */
@@ -518,7 +552,10 @@
       return ordre.desc ? b - a : a - b;
     });
 
-    let h = '<div class="taula-caixa"><table><thead><tr>';
+    let h = '<div class="taula-marc">' +
+         '<div class="taula-pista">Hi ha més columnes: ' +
+         'arrossega la taula cap a la dreta &rarr;</div>' +
+         '<div class="taula-vista"><div class="taula-caixa"><table><thead><tr>';
     cols.forEach(c => {
       const act = c.clau === ordre.clau;
       h += '<th data-clau="' + c.clau + '" class="' + (act ? 'ordenat' : '') + '"' +
@@ -534,8 +571,9 @@
       });
       h += '</tr>';
     });
-    h += '</tbody></table></div>';
+    h += '</tbody></table></div></div></div>';
     contenidor.innerHTML = h;
+    vigilaAmplada(contenidor.querySelector('.taula-marc'));
 
     contenidor.querySelectorAll('th').forEach(th => {
       th.addEventListener('click', () => {
@@ -547,6 +585,29 @@
   }
 
   // ── Vistes ──────────────────────────────────────────────────────────────
+  /* Encen el degradat i la pista nomes quan de debo queda taula a la dreta.
+     El ResizeObserver hi fa falta perque la primera mesura es pren abans que
+     les lletres d'en Google s'hagin carregat, i llavors la taula encara no te
+     l'amplada definitiva. */
+  function vigilaAmplada(marc){
+    if (!marc) return;
+    const caixa = marc.querySelector('.taula-caixa');
+    if (!caixa) return;
+    const mira = () => {
+      const sobra = caixa.scrollWidth - caixa.clientWidth;
+      marc.classList.toggle('mes-dreta', sobra - caixa.scrollLeft > 4);
+      marc.classList.toggle('mostra-pista', sobra > 4);
+    };
+    caixa.addEventListener('scroll', mira, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(mira).observe(caixa);
+    mira();
+  }
+
+  /* Amb un equip triat als filtres, la columna Equip repeteix el mateix valor
+     a totes les files i nomes fa que les columnes de debo quedin fora de
+     pantalla. */
+  const senseEquip = (cols) => cols.filter(c => c.clau !== 'equip_curt');
+
   const COLS_EQUIP = [
     { tit: 'Equip', clau: 'nom', val: f => escapa(f.nom) },
     { tit: 'PJ', clau: 'pj', val: f => f.pj },
@@ -604,10 +665,10 @@
     { tit: 'Equip', clau: 'equip_curt', val: f => '<span class="fluix">' + escapa(f.equip_curt) + '</span>' },
     { tit: 'Part.', clau: 'pj', val: f => f.pj },
     { tit: 'Min', clau: 'min', val: f => f1(f.min) },
-    { tit: 'PF', clau: 'pf', val: f => f.pf },
-    { tit: 'PC', clau: 'pc', val: f => f.pc },
     { tit: '+/-', clau: 'pm', val: f => fSig(f.pm), classe: f => classeSigne(f.pm) },
     { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
+    { tit: 'PF', clau: 'pf', val: f => f.pf },
+    { tit: 'PC', clau: 'pc', val: f => f.pc },
   ];
 
   /* Ordre: primer el que es mira de seguida (quants minuts i com els ha anat)
@@ -961,7 +1022,7 @@
         if (eq) files = files.filter(f => f.equip === eq);
         files = files.filter(f => f.pj >= minPj);
         if (txt) files = files.filter(f => f.nom.toLowerCase().includes(txt));
-        pintaTaula(tBox, COLS_JUG, files, 'pts_p');
+        pintaTaula(tBox, eq ? senseEquip(COLS_JUG) : COLS_JUG, files, 'pts_p');
       };
       ['f_equip','f_pj','f_nom'].forEach(id => {
         const el = document.getElementById(id);
@@ -1149,7 +1210,7 @@
           let files = agregaParelles(parP, nomsCurts);
           if (eqSel) files = files.filter(f => f.equip === eqSel);
           files = files.filter(f => f.min >= minSel);
-          pintaTaula(tBox, COLS_PAR, files, 'min');
+          pintaTaula(tBox, eqSel ? senseEquip(COLS_PAR) : COLS_PAR, files, 'min');
           nota.innerHTML = 'Minuts que han compartit pista i què va passar mentre hi eren totes dues. ' +
             'Tria una jugadora per veure què aporta a cadascuna de les companyes.';
           return;
