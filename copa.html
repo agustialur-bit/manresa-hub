@@ -282,6 +282,14 @@
   const TEMPORADA = "2026-27";
   const COMPETICIO = "COPA";
 
+  /* Pestanyes que es veuen. AQUESTA CONSTANT ES L'UNICA DIFERENCIA entre el
+     copa.html de manresa-hub (staff: les cinc) i el de jugadores (sense
+     'jugadores', que son les dades individuals de cadascuna). La resta del
+     fitxer ha de ser identica als dos repos: si toques un, copia'l a l'altre
+     i torna-hi a posar la seva llista. */
+  const VISTES = [['equips', 'Equips'], ['jugadores', 'Jugadores'], ['parelles', 'Parelles'],
+                  ['quintets', 'Quintets'], ['percentils', 'Percentils']];
+
   // Punts de classificació. L'especificació els deixa pendents de confirmar amb
   // les bases de la FCBQ: si són uns altres, es canvien aquí i prou.
   const PUNTS_VICTORIA = 2, PUNTS_DERROTA = 1;
@@ -602,14 +610,16 @@
     { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
   ];
 
+  /* Ordre: primer el que es mira de seguida (quants minuts i com els ha anat)
+     i els punts a favor i en contra al final, que son el detall. */
   const COLS_QUI = [
     { tit: 'Quintet', clau: 'nom', val: f => escapa(f.nom) },
     { tit: 'Part.', clau: 'pj', val: f => f.pj, ajuda: 'Partits en què han coincidit' },
     { tit: 'Min', clau: 'min', val: f => f1(f.min) },
-    { tit: 'PF', clau: 'pf', val: f => f.pf, ajuda: 'Punts fets mentre hi eren' },
-    { tit: 'PC', clau: 'pc', val: f => f.pc, ajuda: 'Punts rebuts mentre hi eren' },
     { tit: '+/-', clau: 'pm', val: f => fSig(f.pm), classe: f => classeSigne(f.pm) },
     { tit: '+/- min', clau: 'pm_min', val: f => fSig(f.pm_min), classe: f => classeSigne(f.pm_min) },
+    { tit: 'PF', clau: 'pf', val: f => f.pf, ajuda: 'Punts fets mentre hi eren' },
+    { tit: 'PC', clau: 'pc', val: f => f.pc, ajuda: 'Punts rebuts mentre hi eren' },
   ];
 
   /* Les possessions s'estimen com a tirs de camp + 0,44 x tirs lliures. La
@@ -805,7 +815,7 @@
       b.addEventListener('click', () => { MODE_EQ = b.dataset.m; redibuixa(); }));
   }
 
-  let DADES = null, VISTA = 'equips';
+  let DADES = null, VISTA = VISTES[0][0];
   // Es guarda fora de pinta() per no perdre la tria en canviar de pestanya.
   let QUINTET_TRIAT = [];
 
@@ -846,8 +856,7 @@
     }
 
     let h = '<div class="tabs">' +
-      [['equips','Equips'],['jugadores','Jugadores'],['parelles','Parelles'],
-       ['quintets','Quintets'],['percentils','Percentils']]
+      VISTES
         .map(v => '<div class="tab ' + (VISTA === v[0] ? 'actiu' : '') + '" data-v="' + v[0] + '">' +
                   v[1] + '</div>')
         .join('') + '</div><div id="filtres" class="filtres"></div><div id="taula"></div>' +
