@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conquesta de zones</title>
+<style>
+  :root{
+    --bg:#0f1720; --card:#18222e; --line:#2a3644; --text:#eef2f6; --muted:#94a3b8;
+    --accent:#c8102e; --court:#1d2a38; --courtLine:#e6ecf2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  header{padding:18px 16px 6px;max-width:980px;margin:0 auto}
+  h1{margin:0;font-size:22px;letter-spacing:.3px}
+  header{padding-top:max(18px, env(safe-area-inset-top))}
+  .topbar{display:flex;align-items:center;gap:12px}
+  .back-btn{width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--text);display:flex;align-items:center;justify-content:center;text-decoration:none;flex:0 0 auto}
+  .back-btn:hover{border-color:var(--muted)}
+  .sub{margin-left:50px}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .wrap{max-width:980px;margin:0 auto;padding:10px 16px 30px;display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+  @media (max-width:760px){.wrap{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted)}
+  select{background:#0f1720;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+  svg{width:100%;height:auto;display:block}
+  .zone{cursor:pointer;transition:opacity .15s}
+  .zone:hover{opacity:.85}
+  .zone.sel{stroke:#fff;stroke-width:1.2}
+  .zlabel{font-size:4.2px;font-weight:700;fill:#fff;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:.9px}
+  .zpct{font-size:3.4px;fill:#fff;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:.8px}
+  .crown{font-size:4.5px;text-anchor:middle;pointer-events:none}
+  h2{font-size:15px;margin:0 0 10px}
+  .rank{list-style:none;margin:0;padding:0}
+  .rank li{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .rank li:last-child{border-bottom:none}
+  .dot{width:14px;height:14px;border-radius:50%;flex:0 0 14px}
+  .grow{flex:1}
+  .muted{color:var(--muted);font-size:12px}
+  .pill{font-size:11px;background:var(--accent);color:#fff;border-radius:999px;padding:2px 8px;margin-left:6px}
+  .bar{height:6px;border-radius:4px;background:#2a3644;overflow:hidden;margin-top:4px}
+  .bar>span{display:block;height:100%}
+  .rules{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+  .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .wrap>.card:first-child{align-self:start}
+  @media (min-width:761px){.wrap>.card:first-child{position:sticky;top:12px}}
+  #zCard{scroll-margin-top:12px}
+  .rulesCard summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);list-style:none}
+  .rulesCard summary::-webkit-details-marker{display:none}
+  .rulesCard summary::after{content:" ▾"}
+  .rulesCard[open] summary::after{content:" ▴"}
+  .news{font-size:13px;margin:0 0 10px;padding:8px 10px;border-radius:10px;background:rgba(200,16,46,.15);border:1px solid rgba(200,16,46,.4)}
+  .tag{font-size:11px;border-radius:999px;padding:2px 8px;margin-left:6px;background:#2a3644;color:#cbd5e1}
+  .warn{color:#fbbf24}
+  .ev{font-size:13px;padding:5px 0}
+  .tabs{display:flex;gap:6px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <a href="index.html" class="back-btn" aria-label="Tornar">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <h1>👑 Conquesta de zones</h1>
+  </div>
+  <div class="sub" id="sub">Carregant…</div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="controls">
+      <label>Dimecres <select id="selDate"></select></label>
+    </div>
+    <svg id="court" viewBox="-2 -2 154 144" aria-label="Mapa de la pista amb les zones conquerides"></svg>
+  </div>
+
+  <div class="col">
+    <div class="card" id="zCard">
+      <h2 id="zTitle">Toca una zona</h2>
+      <ul class="rank" id="zRank"><li class="muted">Rànquing de la zona seleccionada</li></ul>
+    </div>
+    <div class="card">
+      <h2 id="newsTitle">Què ha passat aquest dimecres</h2>
+      <div id="news"></div>
+    </div>
+    <div class="card" id="palCard" style="display:none">
+      <h2>🏆 Palmarès de rondes anteriors</h2>
+      <ul class="rank" id="pal"></ul>
+    </div>
+    <details class="card rulesCard">
+      <summary>ℹ️ Com funciona</summary>
+      <div class="rules" id="rules"></div>
+    </details>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIGURACIÓ ============ */
+// URL de l'Apps Script desplegat (acabat en /exec). Buit = dades de prova.
+const API_URL = "https://script.google.com/macros/s/AKfycbyZ101cdFqaeAxx6GCmMNkWkJ5PNkFYDy1Bz59W2foLOZXkr54pT2FhHHGoJN5kn822/exec";
+const ULTIMS  = 20;   // la marca de cada jugadora a una zona = % dels seus últims 20 tirs allà
+const DEFENSA = 0;    // 0 = sense caducitat (el míster fa reset). Si poses 3, una marca caduca si fa 3 dimecres que no hi tires
+const RESETS_PROVA = ["2026-11-04"]; // només per a les dades de prova; les reals surten de la pestanya "Resets"
+const PLAYERS = [
+  "Berta","Sira","Laia M","Laia V","Queralt","Jana S.",
+  "Júlia","Noa","Jana Ll","Núria","Mariona","Clàudia"
+];
+const COLORS = ["#e6194b","#3cb44b","#ffb400","#4363d8","#f58231","#911eb4",
+                "#2ec4c4","#f032e6","#9acd32","#ff8fa3","#14967a","#a0522d"];
+/* ====================================== */
+
+// Geometria (decímetres, mitja pista FIBA 15 x 14 m, cistella a dalt)
+const BX = 75, BY = 15.75, R3 = 67.5, CX = 9;
+const YC = BY + Math.sqrt(R3*R3 - (BX-CX)*(BX-CX));
+const PL = 50.5, PR = 99.5, PD = 58, YCORN = 42;
+const t = Math.tan(22*Math.PI/180), xAt = y => (y-BY)*t;
+const INSIDE = `M${CX},0 L${CX},${YC} A${R3},${R3} 0 0 0 ${150-CX},${YC} L${150-CX},0 Z`;
+
+const ZONES = [
+  {id:"Pintura",            d:`M${PL},0 H${PR} V${PD} H${PL} Z`, clip:null, lx:75, ly:34},
+  {id:"Mitja esquerra",     d:`M0,0 H${PL} V140 H0 Z`, clip:"in", lx:31, ly:34},
+  {id:"Mitja centre",       d:`M${PL},${PD} H${PR} V140 H${PL} Z`, clip:"in", lx:75, ly:68},
+  {id:"Mitja dreta",        d:`M${PR},0 H150 V140 H${PR} Z`, clip:"in", lx:119, ly:34},
+  {id:"Cantonada esquerra", d:`M0,0 H75 V${YCORN} H0 Z`, clip:"out", lx:4.5, ly:20, small:true},
+  {id:"45° esquerra",       d:`M0,${YCORN} V140 H${BX-xAt(140)} L${BX-xAt(YCORN)},${YCORN} Z`, clip:"out", lx:18, ly:100},
+  {id:"Frontal",            d:`M${BX},${BY} L${BX-xAt(140)},140 H${BX+xAt(140)} Z`, clip:"out", lx:75, ly:110},
+  {id:"45° dreta",          d:`M150,${YCORN} V140 H${BX+xAt(140)} L${BX+xAt(YCORN)},${YCORN} Z`, clip:"out", lx:132, ly:100},
+  {id:"Cantonada dreta",    d:`M75,0 H150 V${YCORN} H75 Z`, clip:"out", lx:145.5, ly:20, small:true},
+];
+const col = j => COLORS[PLAYERS.indexOf(j)] || "#888";
+const pct = p => Math.round(p*100) + "%";
+
+/* ---------- Dades de prova: cada jugadora tria 3 zones cada dimecres ---------- */
+function demoRows(){
+  const rows = [], dates = [];
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  for(let w=0; w<8; w++) dates.push(iso(new Date(2026, 8, 30 + 7*w)));
+  let seed = 11; const rnd = () => (seed = (seed*9301+49297)%233280)/233280;
+  const Z = ZONES.map(z=>z.id);
+  PLAYERS.forEach((p,i)=>{
+    const fav = [Z[i%9], Z[(i*4+2)%9], Z[(i*7+5)%9]];
+    const skill = {}; Z.forEach(z=>skill[z] = 0.25 + rnd()*0.3);
+    fav.forEach(z=>skill[z] += 0.15);
+    dates.forEach((d,w)=>{
+      const pick = new Set();
+      fav.forEach(z=>{ if(rnd() < 0.6) pick.add(z); });
+      while(pick.size < 3) pick.add(Z[Math.floor(rnd()*9)]);
+      pick.forEach(z=>{
+        const p_ = Math.min(.95, skill[z] + w*0.01);
+        let e=0; for(let s=0;s<10;s++) if(rnd()<p_) e++;
+        rows.push({data:d, jugadora:p, zona:z, encerts:e, intents:10});
+      });
+    });
+  });
+  return rows;
+}
+
+/* ---------- Motor del joc ---------- */
+let ROWS = [], DATES = [], HIST = [], RESETS = [], RONDA = [], PALMARES = [], selZone = null;
+
+// Marca de cada jugadora a cada zona: % dels seus últims ULTIMS tirs allà (fins al dimecres idx)
+function marks(idx){
+  const ses = {}; // zona -> jugadora -> [{k,i,e}] en ordre cronològic
+  ROWS.forEach(r=>{
+    const k = DATES.indexOf(r.data); if(k>idx || RONDA[k]!==RONDA[idx]) return;
+    ((ses[r.zona] ??= {})[r.jugadora] ??= []).push({k, i:r.intents, e:r.encerts});
+  });
+  const out = {};
+  ZONES.forEach(z=>{
+    out[z.id] = Object.entries(ses[z.id]||{}).map(([j,list])=>{
+      list.sort((a,b)=>a.k-b.k);
+      let i=0, e=0;
+      for(let n=list.length-1; n>=0 && i<ULTIMS; n--){
+        const take = Math.min(list[n].i, ULTIMS-i);
+        i += take; e += list[n].e * take / list[n].i;
+      }
+      const last = list[list.length-1].k;
+      return {j, i, e:Math.round(e), p:e/i, last, viva: DEFENSA>0 ? idx-last < DEFENSA : true, ok: i>=ULTIMS};
+    })
+    .filter(x=>x.viva)
+    .sort((a,b)=> b.ok-a.ok || b.p-a.p || b.e-a.e);
+  });
+  return out;
+}
+
+// Recorre tots els dimecres en ordre i guarda l'estat del mapa després de cadascun
+function simulate(){
+  HIST = []; PALMARES = [];
+  RONDA = DATES.map(d => 1 + RESETS.filter(r => r <= d).length);
+  let state = {}; ZONES.forEach(z=>state[z.id] = null); // {j, since, last}
+  let crowns = {}; // rècords del dia acumulats (per ronda)
+  let rondaInici = 0;
+  DATES.forEach((d, idx)=>{
+    const events = [];
+    // 0) Reset: si comença una ronda nova, es guarda el palmarès i totes les zones queden lliures
+    if(idx>0 && RONDA[idx]!==RONDA[idx-1]){
+      PALMARES.push({ronda:RONDA[idx-1], de:DATES[rondaInici], a:DATES[idx-1], state:JSON.parse(JSON.stringify(state)), crowns:{...crowns}});
+      state = {}; ZONES.forEach(z=>state[z.id] = null); crowns = {}; rondaInici = idx;
+      events.push({t:"reset", txt:`🔄 <b>Comença la ronda ${RONDA[idx]}</b>: totes les zones tornen a estar lliures`});
+    }
+    const rowsDay = ROWS.filter(r=>r.data===d);
+    const shot = new Set(rowsDay.map(r=>r.jugadora+"|"+r.zona));
+    const stats = marks(idx);
+
+    ZONES.forEach(z=>{
+      let own = state[z.id];
+      // 1) Defensa: la reina ha de tirar a la zona com a mínim un cop cada DEFENSA dimecres
+      if(own && shot.has(own.j+"|"+z.id)) own.last = idx;
+      if(own && DEFENSA>0){
+        if(idx - own.last >= DEFENSA){
+          events.push({t:"caduca", z:z.id, j:own.j, txt:`⌛ ${own.j} perd <b>${z.id}</b>: fa ${DEFENSA} dimecres que no hi tira`});
+          own = state[z.id] = null;
+        }
+      }
+      // 2) Conquesta / robatori
+      const best = stats[z.id].find(x=>x.ok);
+      if(!best) return;
+      if(!own){
+        state[z.id] = {j:best.j, since:idx, last:idx};
+        events.push({t:"conquesta", z:z.id, j:best.j, txt:`👑 <b>${best.j}</b> conquereix <b>${z.id}</b> (${pct(best.p)})`});
+      } else if(best.j !== own.j){
+        const o = stats[z.id].find(x=>x.j===own.j);
+        const op = o ? o.p : 0;
+        if(best.p > op){
+          events.push({t:"robatori", z:z.id, j:best.j, txt:`⚔️ <b>${best.j}</b> roba <b>${z.id}</b> a ${own.j} (${pct(best.p)} vs ${pct(op)})`});
+          state[z.id] = {j:best.j, since:idx, last:idx};
+        }
+      }
+    });
+
+    // 3) Rècord del dia
+    const max = Math.max(...rowsDay.map(r=>r.encerts));
+    const recs = rowsDay.filter(r=>r.encerts===max);
+    recs.forEach(r=>crowns[r.jugadora] = (crowns[r.jugadora]||0)+1);
+
+    HIST.push({
+      date:d, idx, ronda:RONDA[idx], inici:DATES[rondaInici], stats, events, recs, max,
+      state: JSON.parse(JSON.stringify(state)),
+      crowns: {...crowns}
+    });
+  });
+}
+
+/* ---------- Pintar ---------- */
+function render(){
+  const idx = +document.getElementById("selDate").value;
+  const H = HIST[idx];
+
+  // Pista
+  let h = `<defs>
+    <clipPath id="cIn"><path d="${INSIDE}"/></clipPath>
+    <!-- clip-path i no mask: la mask només amaga el dibuix, però la forma sencera
+         continuava rebent els clics i tapava les zones de dins del triple. -->
+    <clipPath id="cOut"><path clip-rule="evenodd" d="M0,0 H150 V140 H0 Z ${INSIDE}"/></clipPath>
+  </defs><rect x="0" y="0" width="150" height="140" rx="2" fill="var(--court)"/>`;
+  ZONES.forEach(z=>{
+    const o = H.state[z.id];
+    const attr = z.clip==="in" ? `clip-path="url(#cIn)"` : z.clip==="out" ? `clip-path="url(#cOut)"` : "";
+    h += `<g ${attr}><path class="zone ${selZone===z.id?"sel":""}" data-z="${z.id}" d="${z.d}"
+      fill="${o?col(o.j):"#3a4654"}" fill-opacity="${o?0.88:0.6}" stroke="#0f1720" stroke-width=".6"/></g>`;
+  });
+  h += `<g fill="none" stroke="var(--courtLine)" stroke-width=".6" pointer-events="none" opacity=".9">
+    <rect x="0" y="0" width="150" height="140"/><path d="${INSIDE.replace(" Z","")}"/>
+    <rect x="${PL}" y="0" width="${PR-PL}" height="${PD}"/>
+    <path d="M${BX-18},${PD} A18,18 0 0 0 ${BX+18},${PD}"/>
+    <line x1="${BX-9}" y1="12" x2="${BX+9}" y2="12" stroke-width="1"/>
+    <circle cx="${BX}" cy="${BY}" r="2.25" stroke="#ff8c42"/>
+    <path d="M${BX-18},140 A18,18 0 0 1 ${BX+18},140"/></g>`;
+  ZONES.forEach(z=>{
+    const o = H.state[z.id];
+    const left = o ? DEFENSA - (idx - o.last) : 0;   // dimecres que li queden
+    const timer = DEFENSA>0 && o && left < DEFENSA ? ` ⏳${left}` : "";
+    const s = o ? H.stats[z.id].find(x=>x.j===o.j) : null;
+    if(z.small){
+      // Cantonades: text en vertical perquè hi càpiga el nom
+      const rot = z.lx < 75 ? -90 : 90;
+      h += `<g transform="rotate(${rot} ${z.lx} ${z.ly})">
+        <text class="zlabel" x="${z.lx}" y="${z.ly-0.4}" style="font-size:3.8px">${o?"👑 "+o.j:"Lliure"}</text>
+        <text class="zpct" x="${z.lx}" y="${z.ly+3.6}" style="font-size:3px">${o?(s?pct(s.p):"—")+timer:"Cantonada"}</text>
+      </g>`;
+      return;
+    }
+    h += `<text class="crown" x="${z.lx}" y="${z.ly-6}">${o?"👑":""}</text>
+          <text class="zlabel" x="${z.lx}" y="${z.ly}">${o?o.j:"Lliure"}</text>
+          <text class="zpct" x="${z.lx}" y="${z.ly+5}">${o?(s?pct(s.p):"—")+timer:z.id}</text>`;
+  });
+  const svg = document.getElementById("court");
+  svg.innerHTML = h;
+  svg.querySelectorAll(".zone").forEach(el=>el.addEventListener("click",()=>{
+    selZone=el.dataset.z; render();
+    // Al mòbil el rànquing queda sota el mapa: el fem visible sense haver de baixar a mà.
+    const c=document.getElementById("zCard"), r=c.getBoundingClientRect();
+    if(r.bottom>innerHeight || r.top<0) c.scrollIntoView({behavior:"smooth",block:r.height>innerHeight?"start":"nearest"});
+  }));
+
+  // Què ha passat
+  document.getElementById("newsTitle").innerHTML = `Què ha passat el ${fmt(H.date)} <span class="muted" style="font-weight:400">· Ronda ${H.ronda} (des del ${fmt(H.inici)})</span>`;
+  const pal = PALMARES.filter(p=>p.ronda < H.ronda).reverse();
+  document.getElementById("palCard").style.display = pal.length ? "" : "none";
+  document.getElementById("pal").innerHTML = pal.map(p=>{
+    const by = {}; ZONES.forEach(z=>{ const o=p.state[z.id]; if(o)(by[o.j] ??= []).push(z.id); });
+    const lst = Object.entries(by).sort((a,b)=>b[1].length-a[1].length);
+    return `<li style="display:block"><b>Ronda ${p.ronda}</b> <span class="muted">${fmt(p.de)} – ${fmt(p.a)}</span>
+      ${lst.map(([j,zs])=>`<div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <span class="dot" style="background:${col(j)}"></span><span class="grow">${j} <span class="muted">${zs.join(" · ")}</span></span><b>${zs.length} 👑</b></div>`).join("") || '<div class="muted">Cap zona conquerida</div>'}</li>`;
+  }).join("");
+  const rec = H.recs.map(r=>`<b>${r.jugadora}</b> (${r.zona})`).join(", ");
+  const warns = ZONES.filter(z=>{ const o=H.state[z.id]; return DEFENSA>0 && o && DEFENSA-(idx-o.last)===1; })
+    .map(z=>`⏳ <b>${H.state[z.id].j}</b> ha de tirar a <b>${z.id}</b> el proper dimecres o la perd`);
+  document.getElementById("news").innerHTML =
+    `<div class="news">🔥 Rècord del dia: ${H.max}/10 · ${rec}</div>` +
+    (H.events.length ? H.events.map(e=>`<div class="ev">${e.txt}</div>`).join("") : `<div class="ev muted">Cap canvi al mapa aquest dimecres.</div>`) +
+    warns.map(w=>`<div class="ev warn">${w}</div>`).join("");
+
+  // Rànquing de la zona
+  if(selZone){
+    const list = H.stats[selZone], o = H.state[selZone];
+    const os = o ? list.find(x=>x.j===o.j) : null;
+    document.getElementById("zTitle").innerHTML = "📍 " + selZone +
+      (o ? `<div class="muted" style="font-weight:400;margin-top:4px">Reina: ${o.j} des del ${fmt(DATES[o.since])}. Per robar-la cal superar el seu ${os?pct(os.p):"0%"} en els últims ${ULTIMS} tirs.</div>`
+         : `<div class="muted" style="font-weight:400;margin-top:4px">Zona lliure: serà per a la millor marca dels últims ${ULTIMS} tirs.</div>`);
+    document.getElementById("zRank").innerHTML = list.length ? list.map((x,i)=>{
+      const ok = x.ok;
+      return `<li><span class="dot" style="background:${col(x.j)}"></span>
+        <span class="grow">${i+1}. <b>${x.j}</b>${o&&o.j===x.j?'<span class="pill">reina</span>':""}
+        ${ok?"":`<span class="muted"> · li falten ${ULTIMS-x.i} tirs per tenir marca</span>`}
+        <div class="bar"><span style="width:${x.p*100}%;background:${col(x.j)}"></span></div></span>
+        <span style="text-align:right"><b>${pct(x.p)}</b><br><span class="muted">${x.e}/${x.i}</span></span></li>`;
+    }).join("") : `<li class="muted">Ningú hi ha tirat encara en aquesta ronda.</li>`;
+  }
+}
+
+function normDate(v){
+  if(!v) return "";
+  if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0,10);
+  const m = String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  const d = new Date(v); return isNaN(d) ? "" : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function fmt(iso){ const [y,m,d]=iso.split("-"); return `${+d}/${+m}`; }
+
+async function load(){
+  let rows;
+  try{
+    if(API_URL){
+      const r = await fetch(API_URL + (API_URL.includes("?")?"&":"?") + "action=tirs");
+      const js = await r.json();
+      rows = js.rows; RESETS = (js.resets||[]).map(normDate).filter(Boolean);
+    } else { rows = demoRows(); RESETS = RESETS_PROVA; }
+  }catch(e){ document.getElementById("sub").textContent = "No s'han pogut carregar les dades: " + e.message; return; }
+
+  ROWS = rows.map(r=>({
+    data: normDate(r.data ?? r.Data),
+    jugadora: String(r.jugadora ?? r.Jugadora ?? "").trim(),
+    zona: String(r.zona ?? r.Zona ?? "").trim(),
+    encerts: +(r.encerts ?? r.Encerts ?? 0),
+    intents: +(r.intents ?? r.Intents ?? 10) || 10,
+  })).filter(r=>r.data && r.jugadora && r.zona);
+  DATES = [...new Set(ROWS.map(r=>r.data))].sort();
+  if(!DATES.length){ document.getElementById("sub").textContent = "Encara no hi ha cap dimecres registrat."; return; }
+  simulate();
+
+  const sel = document.getElementById("selDate");
+  sel.innerHTML = DATES.map((d,i)=>`<option value="${i}">${fmt(d)} · Ronda ${RONDA[i]}</option>`).join("");
+  sel.value = DATES.length-1; sel.onchange = render;
+  document.getElementById("sub").textContent =
+    (API_URL ? "" : "⚠️ Dades de prova · ") + `${DATES.length} dimecres registrats · ${ROWS.length} files`;
+  document.getElementById("rules").innerHTML = `
+    🎯 <b>La teva marca</b> a una zona és el % dels teus <b>últims ${ULTIMS} tirs</b> allà (les últimes 2 vegades que hi has tirat en aquesta ronda).<br>
+    👑 <b>La reina</b> és qui té la millor marca. Si una altra la supera, li <b>roba</b> la zona. Si hi ha empat, es queda la reina.<br>
+    ${DEFENSA>0 ? `⏳ <b>La marca caduca</b> si fa ${DEFENSA} dimecres que no tires a la zona. Si caduca la de la reina, la perd.<br>` : ""}
+    🔥 <b>Rècord del dia:</b> qui fa més encerts en una zona aquell dimecres.<br>
+    Toca una zona per veure'n el rànquing.`;
+  render();
+}
+load();
+</script>
+</body>
+</html>
